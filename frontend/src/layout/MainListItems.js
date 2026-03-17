@@ -17,6 +17,7 @@ import AccountTreeOutlinedIcon from "@material-ui/icons/AccountTreeOutlined";
 import QuestionAnswerOutlinedIcon from "@material-ui/icons/QuestionAnswerOutlined";
 import ViewColumnOutlinedIcon from "@material-ui/icons/ViewColumnOutlined";
 import DynamicFeedOutlinedIcon from "@material-ui/icons/DynamicFeedOutlined";
+import DescriptionOutlinedIcon from "@material-ui/icons/DescriptionOutlined";
 
 import { i18n } from "../translate/i18n";
 import { WhatsAppsContext } from "../context/WhatsApp/WhatsAppsContext";
@@ -127,6 +128,11 @@ const MainListItems = (props) => {
               to="/queues"
               primary={i18n.t("mainDrawer.listItems.queues")}
               icon={<AccountTreeOutlinedIcon />}
+            />
+            <ListItemLink
+              to="/api-docs"
+              primary="API"
+              icon={<DescriptionOutlinedIcon />}
             />
             <ListItemLink
               to="/contact-fields"

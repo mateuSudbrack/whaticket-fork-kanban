@@ -11,6 +11,7 @@ import Connections from "../pages/Connections/";
 import Settings from "../pages/Settings/";
 import Users from "../pages/Users";
 import Contacts from "../pages/Contacts/";
+import ApiDocs from "../pages/ApiDocs/";
 import ContactFields from "../pages/ContactFields/";
 import Kanban from "../pages/Kanban/";
 import KanbanStages from "../pages/KanbanStages/";
@@ -37,6 +38,7 @@ const Routes = () => {
                 <Route exact path="/kanban-stages" component={KanbanStages} isPrivate />
                 <Route exact path="/connections" component={Connections} isPrivate />
                 <Route exact path="/contacts" component={Contacts} isPrivate />
+                <Route exact path="/api-docs" component={ApiDocs} isPrivate />
                 <Route exact path="/contact-fields" component={ContactFields} isPrivate />
                 <Route exact path="/users" component={Users} isPrivate />
                 <Route exact path="/quickAnswers" component={QuickAnswers} isPrivate />
