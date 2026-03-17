@@ -162,9 +162,10 @@ const KanbanStages = () => {
             <TextField
               label="Nome"
               value={pipelineForm.name}
-              onChange={event =>
-                setPipelineForm(prev => ({ ...prev, name: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setPipelineForm(prev => ({ ...prev, name: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -173,9 +174,10 @@ const KanbanStages = () => {
             <TextField
               label="Cor"
               value={pipelineForm.color}
-              onChange={event =>
-                setPipelineForm(prev => ({ ...prev, color: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setPipelineForm(prev => ({ ...prev, color: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -184,12 +186,13 @@ const KanbanStages = () => {
               label="Ordem"
               type="number"
               value={pipelineForm.sortOrder}
-              onChange={event =>
+              onChange={event => {
+                const { value } = event.target;
                 setPipelineForm(prev => ({
                   ...prev,
-                  sortOrder: event.target.value
-                }))
-              }
+                  sortOrder: value
+                }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -215,9 +218,10 @@ const KanbanStages = () => {
               SelectProps={{ native: true }}
               label="Pipeline"
               value={stageForm.pipelineId}
-              onChange={event =>
-                setStageForm(prev => ({ ...prev, pipelineId: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setStageForm(prev => ({ ...prev, pipelineId: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -233,9 +237,10 @@ const KanbanStages = () => {
             <TextField
               label="Nome"
               value={stageForm.name}
-              onChange={event =>
-                setStageForm(prev => ({ ...prev, name: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setStageForm(prev => ({ ...prev, name: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -244,9 +249,10 @@ const KanbanStages = () => {
             <TextField
               label="Cor"
               value={stageForm.color}
-              onChange={event =>
-                setStageForm(prev => ({ ...prev, color: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setStageForm(prev => ({ ...prev, color: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -255,9 +261,10 @@ const KanbanStages = () => {
               label="Ordem"
               type="number"
               value={stageForm.sortOrder}
-              onChange={event =>
-                setStageForm(prev => ({ ...prev, sortOrder: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setStageForm(prev => ({ ...prev, sortOrder: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth

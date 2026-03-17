@@ -1,8 +1,9 @@
-import { useState, useEffect, useReducer } from "react";
+import { useState, useEffect, useReducer, useContext } from "react";
 import openSocket from "../../services/socket-io";
 import toastError from "../../errors/toastError";
 
 import api from "../../services/api";
+import { AuthContext } from "../../context/Auth/AuthContext";
 
 const reducer = (state, action) => {
 	if (action.type === "LOAD_WHATSAPPS") {
@@ -56,8 +57,19 @@ const reducer = (state, action) => {
 const useWhatsApps = () => {
 	const [whatsApps, dispatch] = useReducer(reducer, []);
 	const [loading, setLoading] = useState(true);
+	const { isAuth, loading: authLoading } = useContext(AuthContext);
 
 	useEffect(() => {
+		if (authLoading) {
+			return;
+		}
+
+		if (!isAuth) {
+			dispatch({ type: "RESET" });
+			setLoading(false);
+			return;
+		}
+
 		setLoading(true);
 		const fetchSession = async () => {
 			try {
@@ -70,9 +82,13 @@ const useWhatsApps = () => {
 			}
 		};
 		fetchSession();
-	}, []);
+	}, [authLoading, isAuth]);
 
 	useEffect(() => {
+		if (authLoading || !isAuth) {
+			return undefined;
+		}
+
 		const socket = openSocket();
 
 		socket.on("whatsapp", data => {
@@ -96,7 +112,7 @@ const useWhatsApps = () => {
 		return () => {
 			socket.disconnect();
 		};
-	}, []);
+	}, [authLoading, isAuth]);
 
 	return { whatsApps, loading };
 };

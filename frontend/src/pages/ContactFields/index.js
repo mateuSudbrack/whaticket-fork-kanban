@@ -120,9 +120,10 @@ const ContactFields = () => {
             <TextField
               label="Nome"
               value={form.name}
-              onChange={event =>
-                setForm(prev => ({ ...prev, name: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setForm(prev => ({ ...prev, name: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -133,9 +134,10 @@ const ContactFields = () => {
               select
               label="Tipo"
               value={form.type}
-              onChange={event =>
-                setForm(prev => ({ ...prev, type: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setForm(prev => ({ ...prev, type: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -150,9 +152,10 @@ const ContactFields = () => {
               label="Ordem"
               type="number"
               value={form.sortOrder}
-              onChange={event =>
-                setForm(prev => ({ ...prev, sortOrder: event.target.value }))
-              }
+              onChange={event => {
+                const { value } = event.target;
+                setForm(prev => ({ ...prev, sortOrder: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -161,12 +164,13 @@ const ContactFields = () => {
               control={
                 <Switch
                   checked={Boolean(form.required)}
-                  onChange={event =>
+                  onChange={event => {
+                    const { checked } = event.target;
                     setForm(prev => ({
                       ...prev,
-                      required: event.target.checked
-                    }))
-                  }
+                      required: checked
+                    }));
+                  }}
                 />
               }
               label="Obrigatorio"
@@ -175,12 +179,13 @@ const ContactFields = () => {
               control={
                 <Switch
                   checked={Boolean(form.active)}
-                  onChange={event =>
+                  onChange={event => {
+                    const { checked } = event.target;
                     setForm(prev => ({
                       ...prev,
-                      active: event.target.checked
-                    }))
-                  }
+                      active: checked
+                    }));
+                  }}
                 />
               }
               label="Ativo"
@@ -189,9 +194,10 @@ const ContactFields = () => {
               <TextField
                 label="Opcoes (uma por linha)"
                 value={form.options}
-                onChange={event =>
-                  setForm(prev => ({ ...prev, options: event.target.value }))
-                }
+                onChange={event => {
+                  const { value } = event.target;
+                  setForm(prev => ({ ...prev, options: value }));
+                }}
                 variant="outlined"
                 margin="dense"
                 multiline
