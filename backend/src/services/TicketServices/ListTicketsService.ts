@@ -8,6 +8,7 @@ import Queue from "../../models/Queue";
 import ShowUserService from "../UserServices/ShowUserService";
 import Whatsapp from "../../models/Whatsapp";
 import KanbanStage from "../../models/KanbanStage";
+import KanbanPipeline from "../../models/KanbanPipeline";
 
 interface Request {
   searchParam?: string;
@@ -19,6 +20,7 @@ interface Request {
   withUnreadMessages?: string;
   queueIds: number[];
   kanbanStageId?: string;
+  pipelineId?: string;
 }
 
 interface Response {
@@ -37,7 +39,8 @@ const ListTicketsService = async ({
   userId,
   withUnreadMessages
   ,
-  kanbanStageId
+  kanbanStageId,
+  pipelineId
 }: Request): Promise<Response> => {
   const queueFilter =
     queueIds && queueIds.length > 0 ? { [Op.or]: [queueIds, null] } : undefined;
@@ -65,6 +68,11 @@ const ListTicketsService = async ({
       attributes: ["name"]
     },
     {
+      model: KanbanPipeline,
+      as: "pipeline",
+      attributes: ["id", "name", "color", "sortOrder"]
+    },
+    {
       model: KanbanStage,
       as: "kanbanStage",
       attributes: ["id", "name", "color", "sortOrder"]
@@ -86,6 +94,13 @@ const ListTicketsService = async ({
     whereCondition = {
       ...whereCondition,
       kanbanStageId
+    };
+  }
+
+  if (pipelineId) {
+    whereCondition = {
+      ...whereCondition,
+      pipelineId
     };
   }
 

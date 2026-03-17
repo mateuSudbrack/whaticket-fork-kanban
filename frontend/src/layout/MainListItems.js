@@ -141,7 +141,7 @@ const MainListItems = (props) => {
             />
             <ListItemLink
               to="/kanban-stages"
-              primary="Estagios Kanban"
+              primary="Pipelines"
               icon={<ViewColumnOutlinedIcon />}
             />
             <ListItemLink

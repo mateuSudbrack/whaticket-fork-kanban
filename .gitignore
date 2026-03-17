@@ -4,5 +4,8 @@ ssl/
 .env
 .env.devtest
 .wwebjs_auth
+.wwebjs_auth_dev
 .wwebjs_cache
+backend/.wwebjs_auth_dev/
+backend/public-dev/
 .idea

@@ -8,15 +8,13 @@ import {
   AutoIncrement,
   AllowNull,
   Default,
-  HasMany,
-  ForeignKey,
-  BelongsTo
+  HasMany
 } from "sequelize-typescript";
+import KanbanStage from "./KanbanStage";
 import Ticket from "./Ticket";
-import KanbanPipeline from "./KanbanPipeline";
 
 @Table
-class KanbanStage extends Model<KanbanStage> {
+class KanbanPipeline extends Model<KanbanPipeline> {
   @PrimaryKey
   @AutoIncrement
   @Column
@@ -41,13 +39,8 @@ class KanbanStage extends Model<KanbanStage> {
   @Column
   active: boolean;
 
-  @ForeignKey(() => KanbanPipeline)
-  @AllowNull(false)
-  @Column
-  pipelineId: number;
-
-  @BelongsTo(() => KanbanPipeline)
-  pipeline: KanbanPipeline;
+  @HasMany(() => KanbanStage)
+  stages: KanbanStage[];
 
   @HasMany(() => Ticket)
   tickets: Ticket[];
@@ -59,4 +52,4 @@ class KanbanStage extends Model<KanbanStage> {
   updatedAt: Date;
 }
 
-export default KanbanStage;
+export default KanbanPipeline;

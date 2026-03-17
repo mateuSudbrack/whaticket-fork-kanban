@@ -5,6 +5,7 @@ import User from "../../models/User";
 import Queue from "../../models/Queue";
 import Whatsapp from "../../models/Whatsapp";
 import KanbanStage from "../../models/KanbanStage";
+import KanbanPipeline from "../../models/KanbanPipeline";
 
 const ShowTicketService = async (id: string | number): Promise<Ticket> => {
   const ticket = await Ticket.findByPk(id, {
@@ -29,6 +30,11 @@ const ShowTicketService = async (id: string | number): Promise<Ticket> => {
         model: Whatsapp,
         as: "whatsapp",
         attributes: ["name"]
+      },
+      {
+        model: KanbanPipeline,
+        as: "pipeline",
+        attributes: ["id", "name", "color", "sortOrder"]
       },
       {
         model: KanbanStage,

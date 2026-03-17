@@ -19,6 +19,7 @@ type IndexQuery = {
   withUnreadMessages: string;
   queueIds: string;
   kanbanStageId: string;
+  pipelineId: string;
 };
 
 interface TicketData {
@@ -26,6 +27,7 @@ interface TicketData {
   status: string;
   queueId: number;
   userId: number;
+  pipelineId?: number;
   kanbanStageId?: number;
 }
 
@@ -38,7 +40,8 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     showAll,
     queueIds: queueIdsStringified,
     withUnreadMessages,
-    kanbanStageId
+    kanbanStageId,
+    pipelineId
   } = req.query as IndexQuery;
 
   const userId = req.user.id;
@@ -58,16 +61,23 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
     userId,
     queueIds,
     withUnreadMessages,
-    kanbanStageId
+    kanbanStageId,
+    pipelineId
   });
 
   return res.status(200).json({ tickets, count, hasMore });
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
-  const { contactId, status, userId }: TicketData = req.body;
+  const { contactId, status, userId, pipelineId, kanbanStageId }: TicketData = req.body;
 
-  const ticket = await CreateTicketService({ contactId, status, userId });
+  const ticket = await CreateTicketService({
+    contactId,
+    status,
+    userId,
+    pipelineId,
+    kanbanStageId
+  });
 
   const io = getIO();
   io.to(ticket.status).emit("ticket", {

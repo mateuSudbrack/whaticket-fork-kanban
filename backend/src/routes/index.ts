@@ -12,6 +12,7 @@ import queueRoutes from "./queueRoutes";
 import quickAnswerRoutes from "./quickAnswerRoutes";
 import apiRoutes from "./apiRoutes";
 import contactFieldDefinitionRoutes from "./contactFieldDefinitionRoutes";
+import kanbanPipelineRoutes from "./kanbanPipelineRoutes";
 import kanbanStageRoutes from "./kanbanStageRoutes";
 
 const routes = Router();
@@ -27,6 +28,7 @@ routes.use(whatsappSessionRoutes);
 routes.use(queueRoutes);
 routes.use(quickAnswerRoutes);
 routes.use(contactFieldDefinitionRoutes);
+routes.use(kanbanPipelineRoutes);
 routes.use(kanbanStageRoutes);
 routes.use("/api/messages", apiRoutes);
 

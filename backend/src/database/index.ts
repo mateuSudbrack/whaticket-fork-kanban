@@ -12,6 +12,7 @@ import WhatsappQueue from "../models/WhatsappQueue";
 import UserQueue from "../models/UserQueue";
 import QuickAnswer from "../models/QuickAnswer";
 import WppKey from "../models/WppKey";
+import KanbanPipeline from "../models/KanbanPipeline";
 import KanbanStage from "../models/KanbanStage";
 
 // eslint-disable-next-line
@@ -30,6 +31,7 @@ const models = [
   ContactCustomField,
   Setting,
   Queue,
+  KanbanPipeline,
   KanbanStage,
   WhatsappQueue,
   UserQueue,

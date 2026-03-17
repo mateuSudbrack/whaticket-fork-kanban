@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
-  Grid,
   IconButton,
   MenuItem,
   Paper,
@@ -70,7 +69,7 @@ const ContactFields = () => {
       sortOrder: Number(form.sortOrder || 0),
       options:
         form.type === "select"
-          ? form.options
+          ? String(form.options || "")
               .split("\n")
               .map(option => option.trim())
               .filter(Boolean)
@@ -95,7 +94,7 @@ const ContactFields = () => {
   const handleEdit = field => {
     setForm({
       ...field,
-      options: (field.options || []).join("\n")
+      options: Array.isArray(field.options) ? field.options.join("\n") : ""
     });
     setOpen(true);
   };
@@ -118,101 +117,88 @@ const ContactFields = () => {
             {form.id ? "Editar campo de contato" : "Novo campo de contato"}
           </DialogTitle>
           <DialogContent dividers>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={8}>
-                <TextField
-                  label="Nome"
-                  value={form.name}
+            <TextField
+              label="Nome"
+              value={form.name}
+              onChange={event =>
+                setForm(prev => ({ ...prev, name: event.target.value }))
+              }
+              variant="outlined"
+              margin="dense"
+              fullWidth
+              required
+              autoFocus
+            />
+            <TextField
+              select
+              label="Tipo"
+              value={form.type}
+              onChange={event =>
+                setForm(prev => ({ ...prev, type: event.target.value }))
+              }
+              variant="outlined"
+              margin="dense"
+              fullWidth
+            >
+              <MenuItem value="text">Texto</MenuItem>
+              <MenuItem value="textarea">Texto longo</MenuItem>
+              <MenuItem value="number">Numero</MenuItem>
+              <MenuItem value="date">Data</MenuItem>
+              <MenuItem value="select">Lista</MenuItem>
+            </TextField>
+            <TextField
+              label="Ordem"
+              type="number"
+              value={form.sortOrder}
+              onChange={event =>
+                setForm(prev => ({ ...prev, sortOrder: event.target.value }))
+              }
+              variant="outlined"
+              margin="dense"
+              fullWidth
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={Boolean(form.required)}
                   onChange={event =>
-                    setForm(prev => ({ ...prev, name: event.target.value }))
+                    setForm(prev => ({
+                      ...prev,
+                      required: event.target.checked
+                    }))
                   }
-                  variant="outlined"
-                  margin="dense"
-                  fullWidth
-                  required
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  select
-                  label="Tipo"
-                  value={form.type}
+              }
+              label="Obrigatorio"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={Boolean(form.active)}
                   onChange={event =>
-                    setForm(prev => ({ ...prev, type: event.target.value }))
+                    setForm(prev => ({
+                      ...prev,
+                      active: event.target.checked
+                    }))
                   }
-                  variant="outlined"
-                  margin="dense"
-                  fullWidth
-                >
-                  <MenuItem value="text">Texto</MenuItem>
-                  <MenuItem value="textarea">Texto longo</MenuItem>
-                  <MenuItem value="number">Numero</MenuItem>
-                  <MenuItem value="date">Data</MenuItem>
-                  <MenuItem value="select">Lista</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  label="Ordem"
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={event =>
-                    setForm(prev => ({ ...prev, sortOrder: event.target.value }))
-                  }
-                  variant="outlined"
-                  margin="dense"
-                  fullWidth
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={form.required}
-                      onChange={event =>
-                        setForm(prev => ({
-                          ...prev,
-                          required: event.target.checked
-                        }))
-                      }
-                    />
-                  }
-                  label="Obrigatorio"
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={form.active}
-                      onChange={event =>
-                        setForm(prev => ({
-                          ...prev,
-                          active: event.target.checked
-                        }))
-                      }
-                    />
-                  }
-                  label="Ativo"
-                />
-              </Grid>
-              {form.type === "select" && (
-                <Grid item xs={12}>
-                  <TextField
-                    label="Opcoes (uma por linha)"
-                    value={form.options}
-                    onChange={event =>
-                      setForm(prev => ({ ...prev, options: event.target.value }))
-                    }
-                    variant="outlined"
-                    margin="dense"
-                    multiline
-                    minRows={4}
-                    fullWidth
-                  />
-                </Grid>
-              )}
-            </Grid>
+              }
+              label="Ativo"
+            />
+            {form.type === "select" && (
+              <TextField
+                label="Opcoes (uma por linha)"
+                value={form.options}
+                onChange={event =>
+                  setForm(prev => ({ ...prev, options: event.target.value }))
+                }
+                variant="outlined"
+                margin="dense"
+                multiline
+                rows={4}
+                fullWidth
+              />
+            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose} color="secondary" variant="outlined">

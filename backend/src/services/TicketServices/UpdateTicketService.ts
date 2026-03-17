@@ -2,15 +2,19 @@ import CheckContactOpenTickets from "../../helpers/CheckContactOpenTickets";
 import SetTicketMessagesAsRead from "../../helpers/SetTicketMessagesAsRead";
 import { getIO } from "../../libs/socket";
 import Ticket from "../../models/Ticket";
+import AppError from "../../errors/AppError";
 import SendWhatsAppMessage from "../WbotServices/SendWhatsAppMessage";
 import ShowWhatsAppService from "../WhatsappService/ShowWhatsAppService";
 import ShowTicketService from "./ShowTicketService";
+import KanbanStage from "../../models/KanbanStage";
+import KanbanPipeline from "../../models/KanbanPipeline";
 
 interface TicketData {
   status?: string;
   userId?: number;
   queueId?: number;
   whatsappId?: number;
+  pipelineId?: number;
   kanbanStageId?: number;
 }
 
@@ -29,7 +33,8 @@ const UpdateTicketService = async ({
   ticketData,
   ticketId
 }: Request): Promise<Response> => {
-  const { status, userId, queueId, whatsappId, kanbanStageId } = ticketData;
+  const { status, userId, queueId, whatsappId } = ticketData;
+  let { pipelineId, kanbanStageId } = ticketData;
 
   const ticket = await ShowTicketService(ticketId);
   await SetTicketMessagesAsRead(ticket);
@@ -45,10 +50,35 @@ const UpdateTicketService = async ({
     await CheckContactOpenTickets(ticket.contact.id, ticket.whatsappId);
   }
 
+  if (pipelineId) {
+    const pipeline = await KanbanPipeline.findByPk(pipelineId);
+
+    if (!pipeline) {
+      throw new AppError("ERR_NO_KANBAN_PIPELINE_FOUND", 404);
+    }
+  }
+
+  if (kanbanStageId) {
+    const stage = await KanbanStage.findByPk(kanbanStageId);
+
+    if (!stage) {
+      throw new AppError("ERR_NO_KANBAN_STAGE_FOUND", 404);
+    }
+
+    pipelineId = stage.pipelineId;
+  } else if (pipelineId && pipelineId !== ticket.pipelineId) {
+    const firstStage = await KanbanStage.findOne({
+      where: { pipelineId, active: true },
+      order: [["sortOrder", "ASC"]]
+    });
+    kanbanStageId = firstStage?.id;
+  }
+
   await ticket.update({
     status,
     queueId,
     userId,
+    pipelineId,
     kanbanStageId
   });
 

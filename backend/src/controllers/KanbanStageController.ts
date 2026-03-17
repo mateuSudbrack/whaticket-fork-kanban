@@ -1,9 +1,11 @@
 import * as Yup from "yup";
 import { Request, Response } from "express";
 import KanbanStage from "../models/KanbanStage";
+import KanbanPipeline from "../models/KanbanPipeline";
 import AppError from "../errors/AppError";
 
 const schema = Yup.object().shape({
+  pipelineId: Yup.number().required(),
   name: Yup.string().required(),
   color: Yup.string(),
   sortOrder: Yup.number(),
@@ -12,6 +14,13 @@ const schema = Yup.object().shape({
 
 export const index = async (_: Request, res: Response): Promise<Response> => {
   const stages = await KanbanStage.findAll({
+    include: [
+      {
+        model: KanbanPipeline,
+        as: "pipeline",
+        attributes: ["id", "name", "color"]
+      }
+    ],
     order: [
       ["sortOrder", "ASC"],
       ["id", "ASC"]
@@ -26,6 +35,12 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     await schema.validate(req.body);
   } catch (err) {
     throw new AppError(err.message);
+  }
+
+  const pipeline = await KanbanPipeline.findByPk(req.body.pipelineId);
+
+  if (!pipeline) {
+    throw new AppError("ERR_NO_KANBAN_PIPELINE_FOUND", 404);
   }
 
   const stage = await KanbanStage.create(req.body);
@@ -44,6 +59,12 @@ export const update = async (req: Request, res: Response): Promise<Response> => 
 
   if (!stage) {
     throw new AppError("ERR_NO_KANBAN_STAGE_FOUND", 404);
+  }
+
+  const pipeline = await KanbanPipeline.findByPk(req.body.pipelineId);
+
+  if (!pipeline) {
+    throw new AppError("ERR_NO_KANBAN_PIPELINE_FOUND", 404);
   }
 
   await stage.update(req.body);

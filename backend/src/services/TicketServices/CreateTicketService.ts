@@ -5,12 +5,14 @@ import Ticket from "../../models/Ticket";
 import User from "../../models/User";
 import ShowContactService from "../ContactServices/ShowContactService";
 import KanbanStage from "../../models/KanbanStage";
+import KanbanPipeline from "../../models/KanbanPipeline";
 
 interface Request {
   contactId: number;
   status: string;
   userId: number;
   queueId?: number;
+  pipelineId?: number;
   kanbanStageId?: number;
 }
 
@@ -19,6 +21,7 @@ const CreateTicketService = async ({
   status,
   userId,
   queueId,
+  pipelineId,
   kanbanStageId
 }: Request): Promise<Ticket> => {
   const defaultWhatsapp = await GetDefaultWhatsApp(userId);
@@ -32,12 +35,21 @@ const CreateTicketService = async ({
     queueId = user?.queues.length === 1 ? user.queues[0].id : undefined;
   }
 
-  if (kanbanStageId === undefined) {
-    const firstStage = await KanbanStage.findOne({
+  if (pipelineId === undefined) {
+    const firstPipeline = await KanbanPipeline.findOne({
       where: { active: true },
       order: [["sortOrder", "ASC"]]
     });
+    pipelineId = firstPipeline?.id;
+  }
+
+  if (kanbanStageId === undefined) {
+    const firstStage = await KanbanStage.findOne({
+      where: { active: true, ...(pipelineId ? { pipelineId } : {}) },
+      order: [["sortOrder", "ASC"]]
+    });
     kanbanStageId = firstStage?.id;
+    pipelineId = firstStage?.pipelineId || pipelineId;
   }
 
   const { id }: Ticket = await defaultWhatsapp.$create("ticket", {
@@ -46,6 +58,7 @@ const CreateTicketService = async ({
     isGroup,
     userId,
     queueId,
+    pipelineId,
     kanbanStageId
   });
 
