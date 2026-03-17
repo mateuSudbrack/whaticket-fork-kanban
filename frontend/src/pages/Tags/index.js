@@ -92,7 +92,10 @@ const Tags = () => {
             <TextField
               label="Nome"
               value={form.name}
-              onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))}
+              onChange={event => {
+                const { value } = event.target;
+                setForm(prev => ({ ...prev, name: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -101,7 +104,10 @@ const Tags = () => {
             <TextField
               label="Cor"
               value={form.color}
-              onChange={event => setForm(prev => ({ ...prev, color: event.target.value }))}
+              onChange={event => {
+                const { value } = event.target;
+                setForm(prev => ({ ...prev, color: value }));
+              }}
               variant="outlined"
               margin="dense"
               fullWidth
@@ -110,9 +116,10 @@ const Tags = () => {
               control={
                 <Switch
                   checked={Boolean(form.active)}
-                  onChange={event =>
-                    setForm(prev => ({ ...prev, active: event.target.checked }))
-                  }
+                  onChange={event => {
+                    const { checked } = event.target;
+                    setForm(prev => ({ ...prev, active: checked }));
+                  }}
                 />
               }
               label="Ativa"
