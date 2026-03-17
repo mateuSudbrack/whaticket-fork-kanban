@@ -1,6 +1,8 @@
 .docker/data/
+.docker-dev/
 ssl/
 .env
+.env.devtest
 .wwebjs_auth
 .wwebjs_cache
 .idea

@@ -9,7 +9,9 @@ type LogLevel =
   | "trace"
   | "silent";
 
-const level = (process.env.LOG_LEVEL as LogLevel) || "info";
+const levels = ["fatal", "error", "warn", "info", "debug", "trace", "silent"];
+const envLevel = process.env.LOG_LEVEL?.toLowerCase();
+const level = levels.includes(envLevel as string) ? (envLevel as LogLevel) : "info";
 
 const isProduction = process.env.NODE_ENV === "production";
 

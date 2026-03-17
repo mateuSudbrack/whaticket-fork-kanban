@@ -11,17 +11,22 @@ export const initIO = (httpServer: Server): SocketIO => {
   io = new SocketIO(httpServer, {
     cors: {
       origin: process.env.FRONTEND_URL
-    }
+    },
+    pingTimeout: 60000,
+    pingInterval: 25000
   });
 
   io.on("connection", socket => {
     const { token } = socket.handshake.query;
     let tokenData = null;
     try {
-      tokenData = verify(token, authConfig.secret);
+      if (!token || token === "null" || token === "undefined") {
+        throw new Error("Token not provided");
+      }
+      tokenData = verify(token as string, authConfig.secret);
       logger.debug(JSON.stringify(tokenData), "io-onConnection: tokenData");
     } catch (error) {
-      logger.error(JSON.stringify(error), "Error decoding token");
+      logger.error({ token, error }, "Error decoding token, disconnecting...");
       socket.disconnect();
       return io;
     }
