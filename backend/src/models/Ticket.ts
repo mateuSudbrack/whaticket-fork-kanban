@@ -17,6 +17,7 @@ import Message from "./Message";
 import Queue from "./Queue";
 import User from "./User";
 import Whatsapp from "./Whatsapp";
+import KanbanStage from "./KanbanStage";
 
 @Table
 class Ticket extends Model<Ticket> {
@@ -71,6 +72,13 @@ class Ticket extends Model<Ticket> {
 
   @BelongsTo(() => Queue)
   queue: Queue;
+
+  @ForeignKey(() => KanbanStage)
+  @Column
+  kanbanStageId: number;
+
+  @BelongsTo(() => KanbanStage)
+  kanbanStage: KanbanStage;
 
   @HasMany(() => Message)
   messages: Message[];

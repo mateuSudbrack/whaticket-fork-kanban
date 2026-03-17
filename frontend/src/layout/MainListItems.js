@@ -134,6 +134,11 @@ const MainListItems = (props) => {
               icon={<DynamicFeedOutlinedIcon />}
             />
             <ListItemLink
+              to="/kanban-stages"
+              primary="Estagios Kanban"
+              icon={<ViewColumnOutlinedIcon />}
+            />
+            <ListItemLink
               to="/settings"
               primary={i18n.t("mainDrawer.listItems.settings")}
               icon={<SettingsOutlinedIcon />}

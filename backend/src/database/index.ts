@@ -12,6 +12,7 @@ import WhatsappQueue from "../models/WhatsappQueue";
 import UserQueue from "../models/UserQueue";
 import QuickAnswer from "../models/QuickAnswer";
 import WppKey from "../models/WppKey";
+import KanbanStage from "../models/KanbanStage";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -29,6 +30,7 @@ const models = [
   ContactCustomField,
   Setting,
   Queue,
+  KanbanStage,
   WhatsappQueue,
   UserQueue,
   QuickAnswer,

@@ -13,6 +13,7 @@ import Users from "../pages/Users";
 import Contacts from "../pages/Contacts/";
 import ContactFields from "../pages/ContactFields/";
 import Kanban from "../pages/Kanban/";
+import KanbanStages from "../pages/KanbanStages/";
 import QuickAnswers from "../pages/QuickAnswers/";
 import Queues from "../pages/Queues/";
 import { AuthProvider } from "../context/Auth/AuthContext";
@@ -33,6 +34,7 @@ const Routes = () => {
                 <Route exact path="/" component={Dashboard} isPrivate />
                 <Route exact path="/tickets/:ticketId?" component={Tickets} isPrivate />
                 <Route exact path="/kanban" component={Kanban} isPrivate />
+                <Route exact path="/kanban-stages" component={KanbanStages} isPrivate />
                 <Route exact path="/connections" component={Connections} isPrivate />
                 <Route exact path="/contacts" component={Contacts} isPrivate />
                 <Route exact path="/contact-fields" component={ContactFields} isPrivate />

@@ -4,19 +4,22 @@ import GetDefaultWhatsApp from "../../helpers/GetDefaultWhatsApp";
 import Ticket from "../../models/Ticket";
 import User from "../../models/User";
 import ShowContactService from "../ContactServices/ShowContactService";
+import KanbanStage from "../../models/KanbanStage";
 
 interface Request {
   contactId: number;
   status: string;
   userId: number;
   queueId?: number;
+  kanbanStageId?: number;
 }
 
 const CreateTicketService = async ({
   contactId,
   status,
   userId,
-  queueId
+  queueId,
+  kanbanStageId
 }: Request): Promise<Ticket> => {
   const defaultWhatsapp = await GetDefaultWhatsApp(userId);
 
@@ -29,12 +32,21 @@ const CreateTicketService = async ({
     queueId = user?.queues.length === 1 ? user.queues[0].id : undefined;
   }
 
+  if (kanbanStageId === undefined) {
+    const firstStage = await KanbanStage.findOne({
+      where: { active: true },
+      order: [["sortOrder", "ASC"]]
+    });
+    kanbanStageId = firstStage?.id;
+  }
+
   const { id }: Ticket = await defaultWhatsapp.$create("ticket", {
     contactId,
     status,
     isGroup,
     userId,
-    queueId
+    queueId,
+    kanbanStageId
   });
 
   const ticket = await Ticket.findByPk(id, { include: ["contact"] });

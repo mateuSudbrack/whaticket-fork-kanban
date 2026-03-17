@@ -48,59 +48,45 @@ const useStyles = makeStyles(theme => ({
   }
 }));
 
-const columns = [
-  { id: "pending", title: "Pendentes" },
-  { id: "open", title: "Em atendimento" },
-  { id: "closed", title: "Fechados" }
-];
-
 const Kanban = () => {
   const classes = useStyles();
   const history = useHistory();
-  const [ticketsByStatus, setTicketsByStatus] = useState({
-    pending: [],
-    open: [],
-    closed: []
-  });
+  const [stages, setStages] = useState([]);
+  const [tickets, setTickets] = useState([]);
 
-  const loadTickets = async () => {
+  const loadBoard = async () => {
     try {
-      const responses = await Promise.all(
-        columns.map(column =>
-          api.get("/tickets", {
-            params: {
-              status: column.id,
-              showAll: true,
-              queueIds: JSON.stringify([])
-            }
-          })
-        )
-      );
+      const [{ data: stagesData }, { data: ticketsData }] = await Promise.all([
+        api.get("/kanban-stages"),
+        api.get("/tickets", {
+          params: {
+            showAll: true,
+            queueIds: JSON.stringify([])
+          }
+        })
+      ]);
 
-      setTicketsByStatus({
-        pending: responses[0].data.tickets,
-        open: responses[1].data.tickets,
-        closed: responses[2].data.tickets
-      });
+      setStages(stagesData);
+      setTickets(ticketsData.tickets);
     } catch (err) {
       toastError(err);
     }
   };
 
   useEffect(() => {
-    loadTickets();
+    loadBoard();
 
     const socket = openSocket();
-    socket.on("ticket", loadTickets);
-    socket.on("appMessage", loadTickets);
-    socket.on("contact", loadTickets);
+    socket.on("ticket", loadBoard);
+    socket.on("appMessage", loadBoard);
+    socket.on("contact", loadBoard);
 
     return () => {
       socket.disconnect();
     };
   }, []);
 
-  const handleDrop = async (event, status) => {
+  const handleDrop = async (event, stageId) => {
     event.preventDefault();
     const ticketId = event.dataTransfer.getData("ticketId");
     const ticketUserId = event.dataTransfer.getData("ticketUserId");
@@ -111,10 +97,10 @@ const Kanban = () => {
 
     try {
       await api.put(`/tickets/${ticketId}`, {
-        status,
-        userId: ticketUserId ? Number(ticketUserId) : null
+        userId: ticketUserId ? Number(ticketUserId) : null,
+        kanbanStageId: Number(stageId)
       });
-      loadTickets();
+      loadBoard();
     } catch (err) {
       toastError(err);
     }
@@ -127,57 +113,73 @@ const Kanban = () => {
       </MainHeader>
 
       <Grid container spacing={2} className={classes.board}>
-        {columns.map(column => (
-          <Grid item xs={12} md={4} key={column.id}>
-            <Paper
-              className={classes.column}
-              onDragOver={event => event.preventDefault()}
-              onDrop={event => handleDrop(event, column.id)}
-            >
-              <Typography variant="h6">
-                {column.title} ({ticketsByStatus[column.id]?.length || 0})
-              </Typography>
-              <div className={classes.columnBody}>
-                {ticketsByStatus[column.id]?.map(ticket => (
-                  <Card
-                    key={ticket.id}
-                    className={classes.ticketCard}
-                    draggable
-                    onDragStart={event => {
-                      event.dataTransfer.setData("ticketId", ticket.id);
-                      event.dataTransfer.setData(
-                        "ticketUserId",
-                        ticket.userId || ""
-                      );
-                    }}
-                    onClick={() => history.push(`/tickets/${ticket.id}`)}
-                  >
-                    <CardContent>
-                      <Typography variant="subtitle1">
-                        {ticket.contact?.name || `Ticket #${ticket.id}`}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        {ticket.lastMessage || "Sem ultima mensagem"}
-                      </Typography>
-                      <div className={classes.ticketMeta}>
-                        {ticket.queue?.name && (
-                          <Chip size="small" label={ticket.queue.name} />
-                        )}
-                        {ticket.whatsapp?.name && (
-                          <Chip
-                            size="small"
-                            label={ticket.whatsapp.name}
-                            variant="outlined"
-                          />
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </Paper>
-          </Grid>
-        ))}
+        {stages.map(stage => {
+          const stageTickets = tickets.filter(
+            ticket => ticket.kanbanStageId === stage.id
+          );
+
+          return (
+            <Grid item xs={12} md={4} key={stage.id}>
+              <Paper
+                className={classes.column}
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => handleDrop(event, stage.id)}
+              >
+                <Typography variant="h6">
+                  {stage.name} ({stageTickets.length})
+                </Typography>
+                <div className={classes.columnBody}>
+                  {stageTickets.map(ticket => (
+                    <Card
+                      key={ticket.id}
+                      className={classes.ticketCard}
+                      draggable
+                      onDragStart={event => {
+                        event.dataTransfer.setData("ticketId", ticket.id);
+                        event.dataTransfer.setData(
+                          "ticketUserId",
+                          ticket.userId || ""
+                        );
+                      }}
+                      onClick={() => history.push(`/tickets/${ticket.id}`)}
+                    >
+                      <CardContent>
+                        <Typography variant="subtitle1">
+                          {ticket.contact?.name || `Ticket #${ticket.id}`}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          {ticket.lastMessage || "Sem ultima mensagem"}
+                        </Typography>
+                        <div className={classes.ticketMeta}>
+                          {ticket.status && (
+                            <Chip
+                              size="small"
+                              label={ticket.status}
+                              style={{
+                                backgroundColor: stage.color,
+                                color: "#fff"
+                              }}
+                            />
+                          )}
+                          {ticket.queue?.name && (
+                            <Chip size="small" label={ticket.queue.name} />
+                          )}
+                          {ticket.whatsapp?.name && (
+                            <Chip
+                              size="small"
+                              label={ticket.whatsapp.name}
+                              variant="outlined"
+                            />
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </Paper>
+            </Grid>
+          );
+        })}
       </Grid>
     </MainContainer>
   );
