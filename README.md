@@ -39,6 +39,404 @@ If a contact sent a new message in less than 2 hours interval, and there is no t
 - Send media (images/audio/documents) ✅
 - Receive media (images/audio/video/documents) ✅
 
+## API
+
+The project can expose the REST API in two common ways:
+
+- through the frontend/proxy, using `/api` in the public URL
+- directly on the backend service, without the `/api` prefix
+
+Examples below assume the public/proxied URL:
+
+```bash
+export BASE_URL="http://127.0.0.1:8093/api"
+```
+
+If you are calling the Node backend directly, use something like:
+
+```bash
+export BASE_URL="http://127.0.0.1:3000"
+```
+
+### Authentication
+
+Login and capture the JWT used by protected endpoints:
+
+```bash
+curl -s "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@whaticket.com",
+    "password": "admin"
+  }'
+```
+
+Response example:
+
+```json
+{
+  "token": "jwt-token",
+  "user": {
+    "id": 1,
+    "name": "Administrador",
+    "email": "admin@whaticket.com",
+    "profile": "admin"
+  }
+}
+```
+
+Store the token for the next requests:
+
+```bash
+export TOKEN="jwt-token"
+```
+
+### Contacts
+
+List contacts:
+
+```bash
+curl "$BASE_URL/contacts?searchParam=&pageNumber=1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Create a contact with global custom fields:
+
+```bash
+curl "$BASE_URL/contacts" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Cliente Teste",
+    "number": "5511999999999",
+    "email": "cliente@example.com",
+    "extraInfo": [
+      {
+        "name": "CPF",
+        "value": "12345678900",
+        "fieldDefinitionId": 1
+      },
+      {
+        "name": "Plano",
+        "value": "Premium",
+        "fieldDefinitionId": 2
+      }
+    ]
+  }'
+```
+
+Fetch a single contact:
+
+```bash
+curl "$BASE_URL/contacts/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Update a contact:
+
+```bash
+curl "$BASE_URL/contacts/1" \
+  -X PUT \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Cliente Atualizado",
+    "number": "5511999999999",
+    "email": "novo-email@example.com",
+    "extraInfo": [
+      {
+        "name": "CPF",
+        "value": "12345678900",
+        "fieldDefinitionId": 1
+      }
+    ]
+  }'
+```
+
+Delete a contact:
+
+```bash
+curl "$BASE_URL/contacts/1" \
+  -X DELETE \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Global Contact Fields
+
+List field definitions:
+
+```bash
+curl "$BASE_URL/contact-field-definitions" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Create a global field:
+
+```bash
+curl "$BASE_URL/contact-field-definitions" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "CPF",
+    "type": "text",
+    "required": false,
+    "options": [],
+    "sortOrder": 1,
+    "active": true
+  }'
+```
+
+Update a global field:
+
+```bash
+curl "$BASE_URL/contact-field-definitions/1" \
+  -X PUT \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Plano",
+    "type": "text",
+    "required": false,
+    "options": [],
+    "sortOrder": 2,
+    "active": true
+  }'
+```
+
+Delete a global field:
+
+```bash
+curl "$BASE_URL/contact-field-definitions/1" \
+  -X DELETE \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Tickets
+
+List tickets:
+
+```bash
+curl "$BASE_URL/tickets?pageNumber=1&status=open&showAll=true" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Filter tickets by queue and kanban stage:
+
+```bash
+curl "$BASE_URL/tickets?pageNumber=1&status=pending&queueIds=%5B1%5D&kanbanStageId=1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Create a ticket:
+
+```bash
+curl "$BASE_URL/tickets" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contactId": 1,
+    "status": "open",
+    "userId": 1
+  }'
+```
+
+Fetch a ticket:
+
+```bash
+curl "$BASE_URL/tickets/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Move a ticket in the kanban:
+
+```bash
+curl "$BASE_URL/tickets/1" \
+  -X PUT \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "open",
+    "userId": 1,
+    "kanbanStageId": 2
+  }'
+```
+
+Close a ticket:
+
+```bash
+curl "$BASE_URL/tickets/1" \
+  -X PUT \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "closed",
+    "userId": 1
+  }'
+```
+
+Delete a ticket:
+
+```bash
+curl "$BASE_URL/tickets/1" \
+  -X DELETE \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Kanban Stages
+
+List stages:
+
+```bash
+curl "$BASE_URL/kanban-stages" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Create a stage:
+
+```bash
+curl "$BASE_URL/kanban-stages" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Aguardando retorno",
+    "color": "#ff9800",
+    "sortOrder": 4,
+    "active": true
+  }'
+```
+
+Update a stage:
+
+```bash
+curl "$BASE_URL/kanban-stages/1" \
+  -X PUT \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Entrada",
+    "color": "#1976d2",
+    "sortOrder": 1,
+    "active": true
+  }'
+```
+
+Delete a stage:
+
+```bash
+curl "$BASE_URL/kanban-stages/4" \
+  -X DELETE \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Messages
+
+List ticket messages:
+
+```bash
+curl "$BASE_URL/messages/1?pageNumber=1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Send a text message:
+
+```bash
+curl "$BASE_URL/messages/1" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "body": "Ola, esta e uma mensagem enviada pela API interna."
+  }'
+```
+
+Send media:
+
+```bash
+curl "$BASE_URL/messages/1" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "body=Arquivo enviado pela API interna" \
+  -F "medias=@/tmp/arquivo.pdf"
+```
+
+Delete a WhatsApp message by `messageId`:
+
+```bash
+curl "$BASE_URL/messages/1" \
+  -X DELETE \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### WhatsApp Connections
+
+List WhatsApp sessions:
+
+```bash
+curl "$BASE_URL/whatsapp/" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Create a WhatsApp connection:
+
+```bash
+curl "$BASE_URL/whatsapp/" \
+  -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Principal",
+    "status": "OPENING",
+    "isDefault": true
+  }'
+```
+
+### External API Token
+
+The route below is intended for token-based sending without JWT login. It uses the value stored in the `Settings` table under `userApiToken`.
+
+List settings as admin and locate `userApiToken`:
+
+```bash
+curl "$BASE_URL/settings" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Store the API token:
+
+```bash
+export API_TOKEN="uuid-from-userApiToken-setting"
+```
+
+Send a text message directly through `/api/messages/send`:
+
+```bash
+curl "$BASE_URL/messages/send" \
+  -X POST \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "number": "5511999999999",
+    "body": "Mensagem enviada pela API externa",
+    "whatsappId": 1
+  }'
+```
+
+Send media through the token-based API:
+
+```bash
+curl "$BASE_URL/messages/send" \
+  -X POST \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -F "number=5511999999999" \
+  -F "body=Segue o arquivo" \
+  -F "whatsappId=1" \
+  -F "medias=@/tmp/arquivo.pdf"
+```
+
 ## Installation and Usage (Linux Ubuntu - Development)
 
 Create Mysql Database using docker:
