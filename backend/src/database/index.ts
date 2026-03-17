@@ -2,6 +2,7 @@ import { Sequelize } from "sequelize-typescript";
 import User from "../models/User";
 import Setting from "../models/Setting";
 import Contact from "../models/Contact";
+import ContactFieldDefinition from "../models/ContactFieldDefinition";
 import Ticket from "../models/Ticket";
 import Whatsapp from "../models/Whatsapp";
 import ContactCustomField from "../models/ContactCustomField";
@@ -21,6 +22,7 @@ const sequelize = new Sequelize(dbConfig);
 const models = [
   User,
   Contact,
+  ContactFieldDefinition,
   Ticket,
   Message,
   Whatsapp,

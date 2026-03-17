@@ -35,9 +35,12 @@ const ListTicketsService = async ({
   userId,
   withUnreadMessages
 }: Request): Promise<Response> => {
+  const queueFilter =
+    queueIds && queueIds.length > 0 ? { [Op.or]: [queueIds, null] } : undefined;
+
   let whereCondition: Filterable["where"] = {
     [Op.or]: [{ userId }, { status: "pending" }],
-    queueId: { [Op.or]: [queueIds, null] }
+    ...(queueFilter ? { queueId: queueFilter } : {})
   };
   let includeCondition: Includeable[];
 
@@ -60,7 +63,7 @@ const ListTicketsService = async ({
   ];
 
   if (showAll === "true") {
-    whereCondition = { queueId: { [Op.or]: [queueIds, null] } };
+    whereCondition = queueFilter ? { queueId: queueFilter } : {};
   }
 
   if (status) {
@@ -127,7 +130,9 @@ const ListTicketsService = async ({
 
     whereCondition = {
       [Op.or]: [{ userId }, { status: "pending" }],
-      queueId: { [Op.or]: [userQueueIds, null] },
+      ...(userQueueIds.length > 0
+        ? { queueId: { [Op.or]: [userQueueIds, null] } }
+        : {}),
       unreadMessages: { [Op.gt]: 0 }
     };
   }

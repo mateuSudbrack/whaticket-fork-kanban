@@ -10,6 +10,7 @@ import {
   BelongsTo
 } from "sequelize-typescript";
 import Contact from "./Contact";
+import ContactFieldDefinition from "./ContactFieldDefinition";
 
 @Table
 class ContactCustomField extends Model<ContactCustomField> {
@@ -23,6 +24,13 @@ class ContactCustomField extends Model<ContactCustomField> {
 
   @Column
   value: string;
+
+  @ForeignKey(() => ContactFieldDefinition)
+  @Column
+  fieldDefinitionId: number;
+
+  @BelongsTo(() => ContactFieldDefinition)
+  fieldDefinition: ContactFieldDefinition;
 
   @ForeignKey(() => Contact)
   @Column

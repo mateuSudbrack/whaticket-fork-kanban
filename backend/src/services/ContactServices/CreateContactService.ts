@@ -2,6 +2,7 @@ import AppError from "../../errors/AppError";
 import Contact from "../../models/Contact";
 
 interface ExtraInfo {
+  fieldDefinitionId?: number;
   name: string;
   value: string;
 }

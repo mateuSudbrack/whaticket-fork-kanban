@@ -4,6 +4,7 @@ import Ticket from "../../models/Ticket";
 import { logger } from "../../utils/logger";
 
 interface ExtraInfo {
+  fieldDefinitionId?: number;
   name: string;
   value: string;
 }

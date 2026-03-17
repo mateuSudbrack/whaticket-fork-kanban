@@ -4,6 +4,7 @@ import ContactCustomField from "../../models/ContactCustomField";
 
 interface ExtraInfo {
   id?: number;
+  fieldDefinitionId?: number;
   name: string;
   value: string;
 }
@@ -28,7 +29,12 @@ const UpdateContactService = async ({
   const contact = await Contact.findOne({
     where: { id: contactId },
     attributes: ["id", "name", "number", "email", "profilePicUrl"],
-    include: ["extraInfo"]
+    include: [
+      {
+        association: "extraInfo",
+        include: ["fieldDefinition"]
+      }
+    ]
   });
 
   if (!contact) {
@@ -61,7 +67,12 @@ const UpdateContactService = async ({
 
   await contact.reload({
     attributes: ["id", "name", "number", "email", "profilePicUrl"],
-    include: ["extraInfo"]
+    include: [
+      {
+        association: "extraInfo",
+        include: ["fieldDefinition"]
+      }
+    ]
   });
 
   return contact;

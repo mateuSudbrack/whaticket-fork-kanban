@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 
 import * as Yup from "yup";
-import { Formik, FieldArray, Form, Field } from "formik";
+import { Formik, Form, Field } from "formik";
 import { toast } from "react-toastify";
 
 import { makeStyles } from "@material-ui/core/styles";
@@ -13,8 +13,6 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import Typography from "@material-ui/core/Typography";
-import IconButton from "@material-ui/core/IconButton";
-import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
 import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { i18n } from "../../translate/i18n";
@@ -36,6 +34,7 @@ const useStyles = makeStyles(theme => ({
 		display: "flex",
 		justifyContent: "center",
 		alignItems: "center",
+		gap: theme.spacing(1),
 	},
 
 	btnWrapper: {
@@ -69,9 +68,31 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 		name: "",
 		number: "",
 		email: "",
+		extraInfo: [],
 	};
 
 	const [contact, setContact] = useState(initialState);
+	const [fieldDefinitions, setFieldDefinitions] = useState([]);
+
+	const mergeExtraInfo = (definitions, extraInfo = []) => {
+		const mappedExtraInfo = extraInfo.reduce((acc, info) => {
+			if (info.fieldDefinitionId) {
+				acc[info.fieldDefinitionId] = info;
+			}
+			return acc;
+		}, {});
+
+		return definitions.map(definition => {
+			const currentInfo = mappedExtraInfo[definition.id];
+
+			return {
+				id: currentInfo?.id,
+				fieldDefinitionId: definition.id,
+				name: definition.name,
+				value: currentInfo?.value || "",
+			};
+		});
+	};
 
 	useEffect(() => {
 		return () => {
@@ -81,18 +102,47 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 
 	useEffect(() => {
 		const fetchContact = async () => {
-			if (initialValues) {
-				setContact(prevState => {
-					return { ...prevState, ...initialValues };
-				});
-			}
-
-			if (!contactId) return;
-
 			try {
+				const { data: definitions } = await api.get("/contact-field-definitions");
+				if (isMounted.current) {
+					setFieldDefinitions(definitions.filter(definition => definition.active));
+				}
+
+				if (initialValues) {
+					setContact(prevState => {
+						const nextState = { ...prevState, ...initialValues };
+						return {
+							...nextState,
+							extraInfo: mergeExtraInfo(
+								definitions.filter(definition => definition.active),
+								initialValues.extraInfo
+							),
+						};
+					});
+				}
+
+				if (!contactId) {
+					if (isMounted.current && !initialValues) {
+						setContact(prevState => ({
+							...prevState,
+							extraInfo: mergeExtraInfo(
+								definitions.filter(definition => definition.active),
+								[]
+							),
+						}));
+					}
+					return;
+				}
+
 				const { data } = await api.get(`/contacts/${contactId}`);
 				if (isMounted.current) {
-					setContact(data);
+					setContact({
+						...data,
+						extraInfo: mergeExtraInfo(
+							definitions.filter(definition => definition.active),
+							data.extraInfo
+						),
+					});
 				}
 			} catch (err) {
 				toastError(err);
@@ -108,12 +158,17 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 	};
 
 	const handleSaveContact = async values => {
+		const payload = {
+			...values,
+			extraInfo: values.extraInfo.filter(info => info.value?.trim()),
+		};
+
 		try {
 			if (contactId) {
-				await api.put(`/contacts/${contactId}`, values);
+				await api.put(`/contacts/${contactId}`, payload);
 				handleClose();
 			} else {
-				const { data } = await api.post("/contacts", values);
+				const { data } = await api.post("/contacts", payload);
 				if (onSave) {
 					onSave(data);
 				}
@@ -191,53 +246,35 @@ const ContactModal = ({ open, onClose, contactId, initialValues, onSave }) => {
 									{i18n.t("contactModal.form.extraInfo")}
 								</Typography>
 
-								<FieldArray name="extraInfo">
-									{({ push, remove }) => (
-										<>
-											{values.extraInfo &&
-												values.extraInfo.length > 0 &&
-												values.extraInfo.map((info, index) => (
-													<div
-														className={classes.extraAttr}
-														key={`${index}-info`}
-													>
-														<Field
-															as={TextField}
-															label={i18n.t("contactModal.form.extraName")}
-															name={`extraInfo[${index}].name`}
-															variant="outlined"
-															margin="dense"
-															className={classes.textField}
-														/>
-														<Field
-															as={TextField}
-															label={i18n.t("contactModal.form.extraValue")}
-															name={`extraInfo[${index}].value`}
-															variant="outlined"
-															margin="dense"
-															className={classes.textField}
-														/>
-														<IconButton
-															size="small"
-															onClick={() => remove(index)}
-														>
-															<DeleteOutlineIcon />
-														</IconButton>
-													</div>
-												))}
-											<div className={classes.extraAttr}>
-												<Button
-													style={{ flex: 1, marginTop: 8 }}
-													variant="outlined"
-													color="primary"
-													onClick={() => push({ name: "", value: "" })}
-												>
-													{`+ ${i18n.t("contactModal.buttons.addExtraInfo")}`}
-												</Button>
-											</div>
-										</>
-									)}
-								</FieldArray>
+								{values.extraInfo && values.extraInfo.length > 0 ? (
+									values.extraInfo.map((info, index) => (
+										<div
+											className={classes.extraAttr}
+											key={`${info.fieldDefinitionId || index}-info`}
+										>
+											<TextField
+												label="Campo"
+												value={info.name}
+												variant="outlined"
+												margin="dense"
+												className={classes.textField}
+												InputProps={{ readOnly: true }}
+											/>
+											<Field
+												as={TextField}
+												label={i18n.t("contactModal.form.extraValue")}
+												name={`extraInfo[${index}].value`}
+												variant="outlined"
+												margin="dense"
+												className={classes.textField}
+											/>
+										</div>
+									))
+								) : (
+									<Typography color="textSecondary">
+										Nenhum campo global de contato foi definido.
+									</Typography>
+								)}
 							</DialogContent>
 							<DialogActions>
 								<Button

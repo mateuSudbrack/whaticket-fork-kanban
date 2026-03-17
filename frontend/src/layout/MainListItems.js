@@ -15,6 +15,8 @@ import PeopleAltOutlinedIcon from "@material-ui/icons/PeopleAltOutlined";
 import ContactPhoneOutlinedIcon from "@material-ui/icons/ContactPhoneOutlined";
 import AccountTreeOutlinedIcon from "@material-ui/icons/AccountTreeOutlined";
 import QuestionAnswerOutlinedIcon from "@material-ui/icons/QuestionAnswerOutlined";
+import ViewColumnOutlinedIcon from "@material-ui/icons/ViewColumnOutlined";
+import DynamicFeedOutlinedIcon from "@material-ui/icons/DynamicFeedOutlined";
 
 import { i18n } from "../translate/i18n";
 import { WhatsAppsContext } from "../context/WhatsApp/WhatsAppsContext";
@@ -91,6 +93,11 @@ const MainListItems = (props) => {
         primary={i18n.t("mainDrawer.listItems.tickets")}
         icon={<WhatsAppIcon />}
       />
+      <ListItemLink
+        to="/kanban"
+        primary="Kanban"
+        icon={<ViewColumnOutlinedIcon />}
+      />
 
       <ListItemLink
         to="/contacts"
@@ -120,6 +127,11 @@ const MainListItems = (props) => {
               to="/queues"
               primary={i18n.t("mainDrawer.listItems.queues")}
               icon={<AccountTreeOutlinedIcon />}
+            />
+            <ListItemLink
+              to="/contact-fields"
+              primary="Campos de Contato"
+              icon={<DynamicFeedOutlinedIcon />}
             />
             <ListItemLink
               to="/settings"

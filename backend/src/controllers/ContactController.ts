@@ -25,6 +25,8 @@ type IndexGetContactQuery = {
 };
 
 interface ExtraInfo {
+  id?: number;
+  fieldDefinitionId?: number;
   name: string;
   value: string;
 }
