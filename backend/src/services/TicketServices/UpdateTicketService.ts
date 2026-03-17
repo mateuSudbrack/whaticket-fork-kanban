@@ -16,6 +16,7 @@ interface TicketData {
   whatsappId?: number;
   pipelineId?: number;
   kanbanStageId?: number;
+  tagIds?: number[];
 }
 
 interface Request {
@@ -33,7 +34,7 @@ const UpdateTicketService = async ({
   ticketData,
   ticketId
 }: Request): Promise<Response> => {
-  const { status, userId, queueId, whatsappId } = ticketData;
+  const { status, userId, queueId, whatsappId, tagIds } = ticketData;
   let { pipelineId, kanbanStageId } = ticketData;
 
   const ticket = await ShowTicketService(ticketId);
@@ -88,26 +89,30 @@ const UpdateTicketService = async ({
     });
   }
 
-  await ticket.reload();
+  if (tagIds) {
+    await ticket.$set("tags", tagIds);
+  }
+
+  const updatedTicket = await ShowTicketService(ticketId);
 
   const io = getIO();
 
-  if (ticket.status !== oldStatus || ticket.user?.id !== oldUserId) {
+  if (updatedTicket.status !== oldStatus || updatedTicket.user?.id !== oldUserId) {
     io.to(oldStatus).emit("ticket", {
       action: "delete",
-      ticketId: ticket.id
+      ticketId: updatedTicket.id
     });
   }
 
-  io.to(ticket.status)
+  io.to(updatedTicket.status)
     .to("notification")
     .to(ticketId.toString())
     .emit("ticket", {
       action: "update",
-      ticket
+      ticket: updatedTicket
     });
 
-  return { ticket, oldStatus, oldUserId };
+  return { ticket: updatedTicket, oldStatus, oldUserId };
 };
 
 export default UpdateTicketService;

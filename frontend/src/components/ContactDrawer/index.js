@@ -10,12 +10,14 @@ import InputLabel from "@material-ui/core/InputLabel";
 import Avatar from "@material-ui/core/Avatar";
 import Button from "@material-ui/core/Button";
 import Paper from "@material-ui/core/Paper";
+import Chip from "@material-ui/core/Chip";
 
 import { i18n } from "../../translate/i18n";
 
 import ContactModal from "../ContactModal";
 import ContactDrawerSkeleton from "../ContactDrawerSkeleton";
 import MarkdownWrapper from "../MarkdownWrapper";
+import TagEditorDialog from "../TagEditorDialog";
 
 const drawerWidth = 320;
 
@@ -75,13 +77,20 @@ const useStyles = makeStyles(theme => ({
 		display: "flex",
 		flexDirection: "column",
 	},
+	tagsRow: {
+		display: "flex",
+		gap: theme.spacing(1),
+		flexWrap: "wrap",
+		marginTop: theme.spacing(1),
+		marginBottom: theme.spacing(1),
+	},
 	contactExtraInfo: {
 		marginTop: 4,
 		padding: 6,
 	},
 }));
 
-const ContactDrawer = ({ open, handleDrawerClose, contact, loading }) => {
+const ContactDrawer = ({ open, handleDrawerClose, contact, loading, onContactUpdate }) => {
 	const classes = useStyles();
 
 	const [modalOpen, setModalOpen] = useState(false);
@@ -132,6 +141,26 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, loading }) => {
 						>
 							{i18n.t("contactDrawer.buttons.edit")}
 						</Button>
+						<TagEditorDialog
+							entity={contact}
+							entityType="contacts"
+							title={`Etiquetas do contato ${contact.name}`}
+							onUpdated={updatedContact => {
+								if (onContactUpdate) {
+									onContactUpdate(updatedContact);
+								}
+							}}
+						/>
+						<div className={classes.tagsRow}>
+							{contact?.tags?.map(tag => (
+								<Chip
+									key={tag.id}
+									size="small"
+									label={tag.name}
+									style={{ backgroundColor: tag.color, color: "#fff" }}
+								/>
+							))}
+						</div>
 					</Paper>
 					<Paper square variant="outlined" className={classes.contactDetails}>
 						<ContactModal

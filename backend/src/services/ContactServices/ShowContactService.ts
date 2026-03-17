@@ -7,6 +7,9 @@ const ShowContactService = async (id: string | number): Promise<Contact> => {
       {
         association: "extraInfo",
         include: ["fieldDefinition"]
+      },
+      {
+        association: "tags"
       }
     ]
   });

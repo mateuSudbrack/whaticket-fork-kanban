@@ -158,6 +158,7 @@ const Ticket = () => {
               contact={contact}
               ticket={ticket}
               onClick={handleDrawerOpen}
+              onUpdateTicket={updatedTicket => setTicket(updatedTicket)}
             />
           </div>
           <div className={classes.ticketActionButtons}>
@@ -177,6 +178,7 @@ const Ticket = () => {
         handleDrawerClose={handleDrawerClose}
         contact={contact}
         loading={loading}
+        onContactUpdate={updatedContact => setContact(updatedContact)}
       />
     </div>
   );

@@ -29,6 +29,7 @@ interface TicketData {
   userId: number;
   pipelineId?: number;
   kanbanStageId?: number;
+  tagIds?: number[];
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {

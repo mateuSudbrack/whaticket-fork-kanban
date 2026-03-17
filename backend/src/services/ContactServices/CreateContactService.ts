@@ -13,13 +13,15 @@ interface Request {
   email?: string;
   profilePicUrl?: string;
   extraInfo?: ExtraInfo[];
+  tagIds?: number[];
 }
 
 const CreateContactService = async ({
   name,
   number,
   email = "",
-  extraInfo = []
+  extraInfo = [],
+  tagIds = []
 }: Request): Promise<Contact> => {
   const numberExists = await Contact.findOne({
     where: { number }
@@ -40,6 +42,17 @@ const CreateContactService = async ({
       include: ["extraInfo"]
     }
   );
+
+  if (tagIds.length > 0) {
+    await contact.$set("tags", tagIds);
+  }
+
+  await contact.reload({
+    include: [
+      "extraInfo",
+      "tags"
+    ]
+  });
 
   return contact;
 };

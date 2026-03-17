@@ -9,6 +9,7 @@ import ShowUserService from "../UserServices/ShowUserService";
 import Whatsapp from "../../models/Whatsapp";
 import KanbanStage from "../../models/KanbanStage";
 import KanbanPipeline from "../../models/KanbanPipeline";
+import Tag from "../../models/Tag";
 
 interface Request {
   searchParam?: string;
@@ -76,6 +77,12 @@ const ListTicketsService = async ({
       model: KanbanStage,
       as: "kanbanStage",
       attributes: ["id", "name", "color", "sortOrder"]
+    },
+    {
+      model: Tag,
+      as: "tags",
+      attributes: ["id", "name", "color"],
+      through: { attributes: [] }
     }
   ];
 

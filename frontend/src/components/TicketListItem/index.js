@@ -13,6 +13,7 @@ import Typography from "@material-ui/core/Typography";
 import Avatar from "@material-ui/core/Avatar";
 import Divider from "@material-ui/core/Divider";
 import Badge from "@material-ui/core/Badge";
+import Chip from "@material-ui/core/Chip";
 
 import { i18n } from "../../translate/i18n";
 
@@ -73,6 +74,12 @@ const useStyles = makeStyles(theme => ({
 
 	contactLastMessage: {
 		paddingRight: 20,
+	},
+	tagRow: {
+		display: "flex",
+		gap: theme.spacing(0.5),
+		flexWrap: "wrap",
+		marginTop: theme.spacing(0.5),
 	},
 
 	newMessagesCount: {
@@ -242,6 +249,18 @@ const TicketListItem = ({ ticket }) => {
 						</span>
 					}
 				/>
+				{ticket.tags?.length > 0 && (
+					<div className={classes.tagRow}>
+						{ticket.tags.slice(0, 3).map(tag => (
+							<Chip
+								key={tag.id}
+								size="small"
+								label={tag.name}
+								style={{ backgroundColor: tag.color, color: "#fff" }}
+							/>
+						))}
+					</div>
+				)}
 				{ticket.status === "pending" && (
 					<ButtonWithSpinner
 						color="primary"

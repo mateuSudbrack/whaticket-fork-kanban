@@ -10,6 +10,8 @@ import {
   HasMany,
   AutoIncrement,
   Default
+  ,
+  BelongsToMany
 } from "sequelize-typescript";
 
 import Contact from "./Contact";
@@ -19,6 +21,8 @@ import User from "./User";
 import Whatsapp from "./Whatsapp";
 import KanbanStage from "./KanbanStage";
 import KanbanPipeline from "./KanbanPipeline";
+import Tag from "./Tag";
+import TicketTag from "./TicketTag";
 
 @Table
 class Ticket extends Model<Ticket> {
@@ -90,6 +94,9 @@ class Ticket extends Model<Ticket> {
 
   @HasMany(() => Message)
   messages: Message[];
+
+  @BelongsToMany(() => Tag, () => TicketTag)
+  tags: Tag[];
 }
 
 export default Ticket;

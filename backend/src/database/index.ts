@@ -14,6 +14,9 @@ import QuickAnswer from "../models/QuickAnswer";
 import WppKey from "../models/WppKey";
 import KanbanPipeline from "../models/KanbanPipeline";
 import KanbanStage from "../models/KanbanStage";
+import Tag from "../models/Tag";
+import ContactTag from "../models/ContactTag";
+import TicketTag from "../models/TicketTag";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -33,6 +36,9 @@ const models = [
   Queue,
   KanbanPipeline,
   KanbanStage,
+  Tag,
+  ContactTag,
+  TicketTag,
   WhatsappQueue,
   UserQueue,
   QuickAnswer,

@@ -14,6 +14,7 @@ import apiRoutes from "./apiRoutes";
 import contactFieldDefinitionRoutes from "./contactFieldDefinitionRoutes";
 import kanbanPipelineRoutes from "./kanbanPipelineRoutes";
 import kanbanStageRoutes from "./kanbanStageRoutes";
+import tagRoutes from "./tagRoutes";
 
 const routes = Router();
 
@@ -30,6 +31,7 @@ routes.use(quickAnswerRoutes);
 routes.use(contactFieldDefinitionRoutes);
 routes.use(kanbanPipelineRoutes);
 routes.use(kanbanStageRoutes);
+routes.use(tagRoutes);
 routes.use("/api/messages", apiRoutes);
 
 export default routes;

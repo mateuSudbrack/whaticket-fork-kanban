@@ -206,6 +206,14 @@ const TicketsKanban = ({ selectedQueueIds, showAll }) => {
                           {ticket.lastMessage || "Sem ultima mensagem"}
                         </Typography>
                         <div className={classes.ticketMeta}>
+                          {(ticket.tags || []).map(tag => (
+                            <Chip
+                              key={tag.id}
+                              size="small"
+                              label={tag.name}
+                              style={{ backgroundColor: tag.color, color: "#fff" }}
+                            />
+                          ))}
                           {ticket.queue?.name && (
                             <Chip size="small" label={ticket.queue.name} />
                           )}

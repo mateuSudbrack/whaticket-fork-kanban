@@ -13,6 +13,7 @@ import Users from "../pages/Users";
 import Contacts from "../pages/Contacts/";
 import ApiDocs from "../pages/ApiDocs/";
 import ContactFields from "../pages/ContactFields/";
+import Tags from "../pages/Tags/";
 import Kanban from "../pages/Kanban/";
 import KanbanStages from "../pages/KanbanStages/";
 import QuickAnswers from "../pages/QuickAnswers/";
@@ -40,6 +41,7 @@ const Routes = () => {
                 <Route exact path="/contacts" component={Contacts} isPrivate />
                 <Route exact path="/api-docs" component={ApiDocs} isPrivate />
                 <Route exact path="/contact-fields" component={ContactFields} isPrivate />
+                <Route exact path="/tags" component={Tags} isPrivate />
                 <Route exact path="/users" component={Users} isPrivate />
                 <Route exact path="/quickAnswers" component={QuickAnswers} isPrivate />
                 <Route exact path="/Settings" component={Settings} isPrivate />

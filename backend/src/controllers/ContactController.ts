@@ -35,6 +35,7 @@ interface ContactData {
   number: string;
   email?: string;
   extraInfo?: ExtraInfo[];
+  tagIds?: number[];
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
@@ -134,7 +135,9 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  await CheckIsValidContact(contactData.number);
+  if (contactData.number) {
+    await CheckIsValidContact(contactData.number);
+  }
 
   const { contactId } = req.params;
 
