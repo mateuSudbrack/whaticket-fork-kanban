@@ -76,14 +76,14 @@ const Chat = () => {
           <Grid
             item
             xs={12}
-            md={4}
+            md={5}
             className={
               ticketId ? classes.contactsWrapperSmall : classes.contactsWrapper
             }
           >
             <TicketsManager />
           </Grid>
-          <Grid item xs={12} md={8} className={classes.messagessWrapper}>
+          <Grid item xs={12} md={7} className={classes.messagessWrapper}>
             {/* <Grid item xs={8} className={classes.messagessWrapper}> */}
             {ticketId ? (
               <>
