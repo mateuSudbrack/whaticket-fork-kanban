@@ -8,10 +8,12 @@ import Tab from "@material-ui/core/Tab";
 import Badge from "@material-ui/core/Badge";
 import MoveToInboxIcon from "@material-ui/icons/MoveToInbox";
 import CheckBoxIcon from "@material-ui/icons/CheckBox";
+import ViewColumnIcon from "@material-ui/icons/ViewColumn";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Switch from "@material-ui/core/Switch";
 import NewTicketModal from "../NewTicketModal";
 import TicketsList from "../TicketsList";
+import TicketsKanban from "../TicketsKanban";
 import TabPanel from "../TabPanel";
 import { i18n } from "../../translate/i18n";
 import { AuthContext } from "../../context/Auth/AuthContext";
@@ -176,6 +178,12 @@ const TicketsManager = () => {
             label={i18n.t("tickets.tabs.search.title")}
             classes={{ root: classes.tab }}
           />
+          <Tab
+            value={"kanban"}
+            icon={<ViewColumnIcon />}
+            label={"Kanban"}
+            classes={{ root: classes.tab }}
+          />
         </Tabs>
       </Paper>
       <Paper square elevation={0} className={classes.ticketOptionsBox}>
@@ -289,6 +297,12 @@ const TicketsManager = () => {
         <TicketsList
           searchParam={searchParam}
           showAll={true}
+          selectedQueueIds={selectedQueueIds}
+        />
+      </TabPanel>
+      <TabPanel value={tab} name="kanban" className={classes.ticketsWrapper}>
+        <TicketsKanban
+          showAll={showAllTickets}
           selectedQueueIds={selectedQueueIds}
         />
       </TabPanel>
