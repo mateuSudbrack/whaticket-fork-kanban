@@ -2,6 +2,7 @@ import AppError from "../../errors/AppError";
 import Message from "../../models/Message";
 import Ticket from "../../models/Ticket";
 import { whatsappProvider } from "../../providers/WhatsApp";
+import NormalizeContactNumber from "../../helpers/NormalizeContactNumber";
 
 const DeleteWhatsAppMessage = async (messageId: string): Promise<Message> => {
   const message = await Message.findByPk(messageId, {
@@ -20,7 +21,10 @@ const DeleteWhatsAppMessage = async (messageId: string): Promise<Message> => {
 
   const { ticket } = message;
 
-  const chatId = `${ticket.contact.number}@${ticket.isGroup ? "g" : "c"}.us`;
+  const contactNumber = ticket.isGroup
+    ? ticket.contact.number
+    : NormalizeContactNumber(ticket.contact.number);
+  const chatId = `${contactNumber}@${ticket.isGroup ? "g" : "c"}.us`;
 
   await whatsappProvider.deleteMessage(
     ticket.whatsappId,

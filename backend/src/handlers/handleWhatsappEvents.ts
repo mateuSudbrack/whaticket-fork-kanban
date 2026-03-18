@@ -223,6 +223,16 @@ export const handleMessage = async (
   try {
     const processedMessage = processLocationMessage(messagePayload);
 
+    if (processedMessage.fromMe) {
+      const existingMessage = await Message.findByPk(processedMessage.id, {
+        attributes: ["id"]
+      });
+
+      if (existingMessage) {
+        return;
+      }
+    }
+
     const contact = await CreateOrUpdateContactService({
       name: contactPayload.name,
       number: contactPayload.number,

@@ -65,6 +65,9 @@ const TicketInfo = ({ contact, ticket, onClick, onUpdateTicket }) => {
           </Typography>
         )}
         <div className={classes.tags}>
+          {ticket.flowsPaused ? (
+            <Chip size="small" label="Fluxos pausados" variant="outlined" />
+          ) : null}
           {(ticket.tags || []).map(tag => (
             <Chip
               key={tag.id}

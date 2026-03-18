@@ -1,5 +1,7 @@
 import AppError from "../../errors/AppError";
 import Contact from "../../models/Contact";
+import { Op } from "sequelize";
+import GetContactNumberVariants from "../../helpers/GetContactNumberVariants";
 
 interface ExtraInfo {
   fieldDefinitionId?: number;
@@ -20,11 +22,18 @@ const CreateContactService = async ({
   name,
   number,
   email = "",
+  profilePicUrl = "",
   extraInfo = [],
   tagIds = []
 }: Request): Promise<Contact> => {
+  const normalizedNumber = String(number || "").replace(/\D/g, "");
+  const numberVariants = GetContactNumberVariants(normalizedNumber);
   const numberExists = await Contact.findOne({
-    where: { number }
+    where: {
+      number: {
+        [Op.in]: numberVariants
+      }
+    }
   });
 
   if (numberExists) {
@@ -34,8 +43,9 @@ const CreateContactService = async ({
   const contact = await Contact.create(
     {
       name,
-      number,
+      number: normalizedNumber,
       email,
+      profilePicUrl,
       extraInfo
     },
     {

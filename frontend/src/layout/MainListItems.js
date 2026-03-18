@@ -19,6 +19,7 @@ import ViewColumnOutlinedIcon from "@material-ui/icons/ViewColumnOutlined";
 import DynamicFeedOutlinedIcon from "@material-ui/icons/DynamicFeedOutlined";
 import DescriptionOutlinedIcon from "@material-ui/icons/DescriptionOutlined";
 import LocalOfferOutlinedIcon from "@material-ui/icons/LocalOfferOutlined";
+import DeviceHubOutlinedIcon from "@material-ui/icons/DeviceHubOutlined";
 
 import { i18n } from "../translate/i18n";
 import { WhatsAppsContext } from "../context/WhatsApp/WhatsAppsContext";
@@ -144,6 +145,11 @@ const MainListItems = (props) => {
               to="/tags"
               primary="Etiquetas"
               icon={<LocalOfferOutlinedIcon />}
+            />
+            <ListItemLink
+              to="/flows"
+              primary="Fluxos"
+              icon={<DeviceHubOutlinedIcon />}
             />
             <ListItemLink
               to="/kanban-stages"

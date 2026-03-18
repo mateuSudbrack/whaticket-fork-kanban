@@ -24,7 +24,7 @@ const useStyles = makeStyles(theme => ({
 	},
 }));
 
-const TicketActionButtons = ({ ticket }) => {
+const TicketActionButtons = ({ ticket, onUpdateTicket }) => {
 	const classes = useStyles();
 	const history = useHistory();
 	const [anchorEl, setAnchorEl] = useState(null);
@@ -63,14 +63,26 @@ const TicketActionButtons = ({ ticket }) => {
 	return (
 		<div className={classes.actionButtons}>
 			{ticket.status === "closed" && (
-				<ButtonWithSpinner
-					loading={loading}
-					startIcon={<Replay />}
-					size="small"
-					onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
-				>
-					{i18n.t("messagesList.header.buttons.reopen")}
-				</ButtonWithSpinner>
+				<>
+					<ButtonWithSpinner
+						loading={loading}
+						startIcon={<Replay />}
+						size="small"
+						onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
+					>
+						{i18n.t("messagesList.header.buttons.reopen")}
+					</ButtonWithSpinner>
+					<IconButton onClick={handleOpenTicketOptionsMenu}>
+						<MoreVert />
+					</IconButton>
+					<TicketOptionsMenu
+						ticket={ticket}
+						anchorEl={anchorEl}
+						menuOpen={ticketOptionsMenuOpen}
+						handleClose={handleCloseTicketOptionsMenu}
+            onUpdateTicket={onUpdateTicket}
+					/>
+				</>
 			)}
 			{ticket.status === "open" && (
 				<>
@@ -99,19 +111,32 @@ const TicketActionButtons = ({ ticket }) => {
 						anchorEl={anchorEl}
 						menuOpen={ticketOptionsMenuOpen}
 						handleClose={handleCloseTicketOptionsMenu}
+            onUpdateTicket={onUpdateTicket}
 					/>
 				</>
 			)}
 			{ticket.status === "pending" && (
-				<ButtonWithSpinner
-					loading={loading}
-					size="small"
-					variant="contained"
-					color="primary"
-					onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
-				>
-					{i18n.t("messagesList.header.buttons.accept")}
-				</ButtonWithSpinner>
+				<>
+					<ButtonWithSpinner
+						loading={loading}
+						size="small"
+						variant="contained"
+						color="primary"
+						onClick={e => handleUpdateTicketStatus(e, "open", user?.id)}
+					>
+						{i18n.t("messagesList.header.buttons.accept")}
+					</ButtonWithSpinner>
+					<IconButton onClick={handleOpenTicketOptionsMenu}>
+						<MoreVert />
+					</IconButton>
+					<TicketOptionsMenu
+						ticket={ticket}
+						anchorEl={anchorEl}
+						menuOpen={ticketOptionsMenuOpen}
+						handleClose={handleCloseTicketOptionsMenu}
+            onUpdateTicket={onUpdateTicket}
+					/>
+				</>
 			)}
 		</div>
 	);

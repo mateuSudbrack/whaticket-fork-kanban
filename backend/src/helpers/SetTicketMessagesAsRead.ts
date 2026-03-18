@@ -1,8 +1,10 @@
 import { getIO } from "../libs/socket";
 import Message from "../models/Message";
 import Ticket from "../models/Ticket";
+import Whatsapp from "../models/Whatsapp";
 import { logger } from "../utils/logger";
 import { whatsappProvider } from "../providers/WhatsApp";
+import NormalizeContactNumber from "./NormalizeContactNumber";
 
 const SetTicketMessagesAsRead = async (ticket: Ticket): Promise<void> => {
   await Message.update(
@@ -19,9 +21,18 @@ const SetTicketMessagesAsRead = async (ticket: Ticket): Promise<void> => {
 
   try {
     if (ticket.whatsappId) {
+      const whatsapp = await Whatsapp.findByPk(ticket.whatsappId);
+
+      if (!whatsapp || whatsapp.status !== "CONNECTED") {
+        throw new Error("WHATSAPP_NOT_CONNECTED");
+      }
+
+      const contactNumber = ticket.isGroup
+        ? ticket.contact.number
+        : NormalizeContactNumber(ticket.contact.number);
       await whatsappProvider.sendSeen(
         ticket.whatsappId,
-        `${ticket.contact.number}@${ticket.isGroup ? "g" : "c"}.us`
+        `${contactNumber}@${ticket.isGroup ? "g" : "c"}.us`
       );
     }
   } catch (err) {

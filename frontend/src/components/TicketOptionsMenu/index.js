@@ -10,10 +10,19 @@ import TransferTicketModal from "../TransferTicketModal";
 import toastError from "../../errors/toastError";
 import { Can } from "../Can";
 import { AuthContext } from "../../context/Auth/AuthContext";
+import { toast } from "react-toastify";
+import FlowRunDialog from "../FlowRunDialog";
 
-const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
+const TicketOptionsMenu = ({
+	ticket,
+	menuOpen,
+	handleClose,
+	anchorEl,
+	onUpdateTicket
+}) => {
 	const [confirmationOpen, setConfirmationOpen] = useState(false);
 	const [transferTicketModalOpen, setTransferTicketModalOpen] = useState(false);
+	const [flowDialogOpen, setFlowDialogOpen] = useState(false);
 	const isMounted = useRef(true);
 	const { user } = useContext(AuthContext);
 
@@ -38,6 +47,26 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 
 	const handleOpenTransferModal = e => {
 		setTransferTicketModalOpen(true);
+		handleClose();
+	};
+
+	const handleOpenFlowDialog = () => {
+		setFlowDialogOpen(true);
+		handleClose();
+	};
+
+	const handleToggleFlowsPaused = async () => {
+		try {
+			const { data } = await api.put(`/tickets/${ticket.id}`, {
+				flowsPaused: !ticket.flowsPaused,
+			});
+			if (onUpdateTicket) {
+				onUpdateTicket(data);
+			}
+			toast.success(data.flowsPaused ? "Fluxos pausados" : "Fluxos retomados");
+		} catch (err) {
+			toastError(err);
+		}
 		handleClose();
 	};
 
@@ -68,6 +97,12 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 				<MenuItem onClick={handleOpenTransferModal}>
 					{i18n.t("ticketOptionsMenu.transfer")}
 				</MenuItem>
+				<MenuItem onClick={handleOpenFlowDialog}>
+					Enviar fluxo
+				</MenuItem>
+				<MenuItem onClick={handleToggleFlowsPaused}>
+					{ticket.flowsPaused ? "Retomar automacoes" : "Pausar todos fluxos"}
+				</MenuItem>
 				<Can
 					role={user.profile}
 					perform="ticket-options:deleteTicket"
@@ -95,6 +130,11 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 				onClose={handleCloseTransferTicketModal}
 				ticketid={ticket.id}
 				ticketWhatsappId={ticket.whatsappId}
+			/>
+			<FlowRunDialog
+				open={flowDialogOpen}
+				onClose={() => setFlowDialogOpen(false)}
+				ticketId={ticket.id}
 			/>
 		</>
 	);

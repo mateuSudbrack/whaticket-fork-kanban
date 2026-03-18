@@ -312,6 +312,17 @@ const removeSession = (whatsappId: number): void => {
   }
 };
 
+const resolveRecipientId = async (wbot: Session, chatId: string): Promise<string> => {
+  if (chatId.endsWith("@g.us")) {
+    return chatId;
+  }
+
+  const number = chatId.replace(/@c\.us$/i, "").replace(/@s\.whatsapp\.net$/i, "");
+  const numberId = await wbot.getNumberId(`${number}@c.us`);
+
+  return (numberId as any)?._serialized || chatId;
+};
+
 const sendMessage = async (
   sessionId: number,
   to: string,
@@ -319,16 +330,17 @@ const sendMessage = async (
   options?: SendMessageOptions
 ): Promise<ProviderMessage> => {
   const wbot = getWbot(sessionId);
+  const recipientId = await resolveRecipientId(wbot, to);
 
   const quotedMsgSerializedId = options?.quotedMessageId
     ? getSerializedMessageId(
-        to,
+        recipientId,
         Boolean(options?.quotedMessageFromMe),
         options?.quotedMessageId
       )
     : "";
 
-  const sentMessage = await wbot.sendMessage(to, body, {
+  const sentMessage = await wbot.sendMessage(recipientId, body, {
     quotedMessageId: quotedMsgSerializedId,
     linkPreview: options?.linkPreview
   });
@@ -343,6 +355,7 @@ const sendMedia = async (
   options?: SendMediaOptions
 ): Promise<ProviderMessage> => {
   const wbot = getWbot(sessionId);
+  const recipientId = await resolveRecipientId(wbot, to);
 
   const messageMedia = media.path
     ? MessageMedia.fromFilePath(media.path)
@@ -365,7 +378,7 @@ const sendMedia = async (
     mediaOptions.sendMediaAsDocument = options?.sendMediaAsDocument || true;
   }
 
-  const sentMessage = await wbot.sendMessage(to, messageMedia, mediaOptions);
+  const sentMessage = await wbot.sendMessage(recipientId, messageMedia, mediaOptions);
   return convertToProviderMessage(sentMessage);
 };
 
@@ -390,7 +403,8 @@ const getProfilePicUrl = async (
 
 const sendSeen = async (sessionId: number, chatId: string): Promise<void> => {
   const wbot = getWbot(sessionId);
-  const chat = await wbot.getChatById(chatId);
+  const recipientId = await resolveRecipientId(wbot, chatId);
+  const chat = await wbot.getChatById(recipientId);
   await chat.sendSeen();
 };
 

@@ -65,7 +65,7 @@ export const getContact = async (
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const newContact: ContactData = req.body;
-  newContact.number = newContact.number.replace("-", "").replace(" ", "");
+  newContact.number = newContact.number.replace(/\D/g, "");
 
   const schema = Yup.object().shape({
     name: Yup.string().required(),
@@ -80,10 +80,28 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
     throw new AppError(err.message);
   }
 
-  await CheckIsValidContact(newContact.number);
-  const validNumber: any = await CheckContactNumber(newContact.number);
+  let validNumber = newContact.number;
+  let profilePicUrl = "";
 
-  const profilePicUrl = await GetProfilePicUrl(validNumber);
+  try {
+    await CheckIsValidContact(newContact.number);
+    validNumber = await CheckContactNumber(newContact.number);
+  } catch (err) {
+    if (
+      err instanceof AppError &&
+      ["ERR_WAPP_INVALID_CONTACT", "ERR_WAPP_CHECK_CONTACT"].includes(err.message)
+    ) {
+      validNumber = newContact.number;
+    } else {
+      throw err;
+    }
+  }
+
+  try {
+    profilePicUrl = await GetProfilePicUrl(validNumber);
+  } catch (err) {
+    profilePicUrl = "";
+  }
 
   let name = newContact.name;
   let number = validNumber;
@@ -136,7 +154,16 @@ export const update = async (
   }
 
   if (contactData.number) {
-    await CheckIsValidContact(contactData.number);
+    try {
+      await CheckIsValidContact(contactData.number);
+    } catch (err) {
+      if (
+        !(err instanceof AppError) ||
+        !["ERR_WAPP_INVALID_CONTACT", "ERR_WAPP_CHECK_CONTACT"].includes(err.message)
+      ) {
+        throw err;
+      }
+    }
   }
 
   const { contactId } = req.params;

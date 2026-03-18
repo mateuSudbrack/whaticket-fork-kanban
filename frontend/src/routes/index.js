@@ -16,6 +16,7 @@ import ContactFields from "../pages/ContactFields/";
 import Tags from "../pages/Tags/";
 import Kanban from "../pages/Kanban/";
 import KanbanStages from "../pages/KanbanStages/";
+import Flows from "../pages/Flows/";
 import QuickAnswers from "../pages/QuickAnswers/";
 import Queues from "../pages/Queues/";
 import { AuthProvider } from "../context/Auth/AuthContext";
@@ -42,6 +43,7 @@ const Routes = () => {
                 <Route exact path="/api-docs" component={ApiDocs} isPrivate />
                 <Route exact path="/contact-fields" component={ContactFields} isPrivate />
                 <Route exact path="/tags" component={Tags} isPrivate />
+                <Route exact path="/flows" component={Flows} isPrivate />
                 <Route exact path="/users" component={Users} isPrivate />
                 <Route exact path="/quickAnswers" component={QuickAnswers} isPrivate />
                 <Route exact path="/Settings" component={Settings} isPrivate />

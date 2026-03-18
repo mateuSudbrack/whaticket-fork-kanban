@@ -162,7 +162,10 @@ const Ticket = () => {
             />
           </div>
           <div className={classes.ticketActionButtons}>
-            <TicketActionButtons ticket={ticket} />
+            <TicketActionButtons
+              ticket={ticket}
+              onUpdateTicket={updatedTicket => setTicket(updatedTicket)}
+            />
           </div>
         </TicketHeader>
         <ReplyMessageProvider>

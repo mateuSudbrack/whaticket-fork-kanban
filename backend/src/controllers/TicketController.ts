@@ -30,6 +30,7 @@ interface TicketData {
   pipelineId?: number;
   kanbanStageId?: number;
   tagIds?: number[];
+  flowsPaused?: boolean;
 }
 
 export const index = async (req: Request, res: Response): Promise<Response> => {

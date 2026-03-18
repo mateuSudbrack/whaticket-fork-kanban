@@ -17,6 +17,8 @@ import KanbanStage from "../models/KanbanStage";
 import Tag from "../models/Tag";
 import ContactTag from "../models/ContactTag";
 import TicketTag from "../models/TicketTag";
+import Flow from "../models/Flow";
+import FlowExecution from "../models/FlowExecution";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -39,6 +41,8 @@ const models = [
   Tag,
   ContactTag,
   TicketTag,
+  Flow,
+  FlowExecution,
   WhatsappQueue,
   UserQueue,
   QuickAnswer,

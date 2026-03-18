@@ -22,6 +22,16 @@ interface Request {
 const CreateMessageService = async ({
   messageData
 }: Request): Promise<Message> => {
+  if (messageData.quotedMsgId) {
+    const quotedMessage = await Message.findByPk(messageData.quotedMsgId, {
+      attributes: ["id"]
+    });
+
+    if (!quotedMessage) {
+      messageData.quotedMsgId = undefined;
+    }
+  }
+
   await Message.upsert(messageData);
 
   const message = await Message.findByPk(messageData.id, {

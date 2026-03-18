@@ -8,6 +8,7 @@ services:
     build:
       context: ./backend
       dockerfile: ./Dockerfile
+    hostname: whaticket-dev-backend
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -22,6 +23,7 @@ services:
       - PROXY_PORT=${PROXY_PORT}
       - CHROME_ARGS=--no-sandbox --disable-setuid-sandbox
       - PORT=3000
+      - TZ=${TZ}
     volumes:
       - ./backend/public-dev/:/usr/src/app/public/
       - ./backend/.wwebjs_auth_dev/:/usr/src/app/.wwebjs_auth/
@@ -39,6 +41,7 @@ services:
       - REACT_APP_BACKEND_URL=http://whaticket.digiyou.com.br:8093/api
       - REACT_APP_BACKEND_SOCKET_URL=http://whaticket.digiyou.com.br:8093
       - REACT_APP_BACKEND_SOCKET_PATH=/socket.io
+      - TZ=${TZ}
     ports:
       - ${FRONTEND_PORT}:80
     volumes:

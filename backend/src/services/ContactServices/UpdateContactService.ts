@@ -1,6 +1,10 @@
 import AppError from "../../errors/AppError";
+import { Op } from "sequelize";
 import Contact from "../../models/Contact";
 import ContactCustomField from "../../models/ContactCustomField";
+import Ticket from "../../models/Ticket";
+import GetContactNumberVariants from "../../helpers/GetContactNumberVariants";
+import { findFlowsForContext, startFlowExecution } from "../FlowServices/FlowEngine";
 
 interface ExtraInfo {
   id?: number;
@@ -45,6 +49,28 @@ const UpdateContactService = async ({
     throw new AppError("ERR_NO_CONTACT_FOUND", 404);
   }
 
+  const previousTagIds = new Set((contact.tags || []).map(tag => tag.id));
+  const normalizedNumber = number ? String(number).replace(/\D/g, "") : contact.number;
+  const nextTagIds = Array.isArray(tagIds) ? Array.from(new Set(tagIds.map(tagId => Number(tagId)))) : undefined;
+
+  if (number) {
+    const duplicatedContact = await Contact.findOne({
+      where: {
+        id: {
+          [Op.ne]: contact.id
+        },
+        number: {
+          [Op.in]: GetContactNumberVariants(normalizedNumber)
+        }
+      },
+      attributes: ["id"]
+    });
+
+    if (duplicatedContact) {
+      throw new AppError("ERR_DUPLICATED_CONTACT");
+    }
+  }
+
   if (extraInfo) {
     await Promise.all(
       extraInfo.map(async info => {
@@ -65,12 +91,12 @@ const UpdateContactService = async ({
 
   await contact.update({
     name,
-    number,
+    number: normalizedNumber,
     email
   });
 
-  if (tagIds) {
-    await contact.$set("tags", tagIds);
+  if (nextTagIds) {
+    await contact.$set("tags", nextTagIds);
   }
 
   await contact.reload({
@@ -85,6 +111,35 @@ const UpdateContactService = async ({
       }
     ]
   });
+
+  if (nextTagIds) {
+    const persistedTagIds = new Set((contact.tags || []).map(tag => tag.id));
+    const addedTagIds = [...persistedTagIds].filter(tagId => !previousTagIds.has(tagId));
+
+    if (addedTagIds.length > 0) {
+      const tickets = await Ticket.findAll({
+        where: {
+          contactId: contact.id
+        },
+        order: [["updatedAt", "DESC"]]
+      });
+
+      for (const ticket of tickets) {
+        for (const tagId of addedTagIds) {
+          const tagFlows = await findFlowsForContext("tag_added", { tagId });
+          for (const flow of tagFlows) {
+            await startFlowExecution(flow.id, ticket.id, {
+              triggerType: "tag_added",
+              meta: {
+                tagId,
+                source: "contact"
+              }
+            });
+          }
+        }
+      }
+    }
+  }
 
   return contact;
 };

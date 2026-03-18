@@ -8,15 +8,17 @@ import ShowWhatsAppService from "../WhatsappService/ShowWhatsAppService";
 import ShowTicketService from "./ShowTicketService";
 import KanbanStage from "../../models/KanbanStage";
 import KanbanPipeline from "../../models/KanbanPipeline";
+import { findFlowsForContext, startFlowExecution } from "../FlowServices/FlowEngine";
 
 interface TicketData {
   status?: string;
-  userId?: number;
-  queueId?: number;
+  userId?: number | null;
+  queueId?: number | null;
   whatsappId?: number;
-  pipelineId?: number;
-  kanbanStageId?: number;
+  pipelineId?: number | null;
+  kanbanStageId?: number | null;
   tagIds?: number[];
+  flowsPaused?: boolean;
 }
 
 interface Request {
@@ -34,7 +36,7 @@ const UpdateTicketService = async ({
   ticketData,
   ticketId
 }: Request): Promise<Response> => {
-  const { status, userId, queueId, whatsappId, tagIds } = ticketData;
+  const { status, userId, queueId, whatsappId, tagIds, flowsPaused } = ticketData;
   let { pipelineId, kanbanStageId } = ticketData;
 
   const ticket = await ShowTicketService(ticketId);
@@ -46,6 +48,8 @@ const UpdateTicketService = async ({
 
   const oldStatus = ticket.status;
   const oldUserId = ticket.user?.id;
+  const oldQueueId = ticket.queueId;
+  const previousTagIds = new Set((ticket.tags || []).map(tag => tag.id));
 
   if (oldStatus === "closed") {
     await CheckContactOpenTickets(ticket.contact.id, ticket.whatsappId);
@@ -80,7 +84,8 @@ const UpdateTicketService = async ({
     queueId,
     userId,
     pipelineId,
-    kanbanStageId
+    kanbanStageId,
+    flowsPaused
   });
 
   if (whatsappId) {
@@ -111,6 +116,51 @@ const UpdateTicketService = async ({
       action: "update",
       ticket: updatedTicket
     });
+
+  const nextTagIds = new Set((updatedTicket.tags || []).map(tag => tag.id));
+  const addedTagIds = [...nextTagIds].filter(tagId => !previousTagIds.has(tagId));
+
+  if (updatedTicket.queueId && updatedTicket.queueId !== oldQueueId) {
+    const queueFlows = await findFlowsForContext("queue_entered", {
+      queueId: updatedTicket.queueId
+    });
+    for (const flow of queueFlows) {
+      await startFlowExecution(flow.id, updatedTicket.id, {
+        triggerType: "queue_entered",
+        meta: {
+          queueId: updatedTicket.queueId,
+          previousQueueId: oldQueueId || null
+        }
+      });
+    }
+  }
+
+  if (updatedTicket.userId && updatedTicket.userId !== oldUserId) {
+    const userFlows = await findFlowsForContext("user_transferred", {
+      userId: updatedTicket.userId
+    });
+    for (const flow of userFlows) {
+      await startFlowExecution(flow.id, updatedTicket.id, {
+        triggerType: "user_transferred",
+        meta: {
+          userId: updatedTicket.userId,
+          previousUserId: oldUserId || null
+        }
+      });
+    }
+  }
+
+  if (addedTagIds.length > 0) {
+    for (const tagId of addedTagIds) {
+      const tagFlows = await findFlowsForContext("tag_added", { tagId });
+      for (const flow of tagFlows) {
+        await startFlowExecution(flow.id, updatedTicket.id, {
+          triggerType: "tag_added",
+          meta: { tagId }
+        });
+      }
+    }
+  }
 
   return { ticket: updatedTicket, oldStatus, oldUserId };
 };
