@@ -2,6 +2,7 @@ import Constants from "expo-constants";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -130,6 +131,32 @@ function Badge({ label, color, filled = false }) {
       <Text style={[styles.badgeText, filled && styles.badgeTextFilled]}>
         {label}
       </Text>
+    </View>
+  );
+}
+
+function ContactAvatar({ contact, size = 44 }) {
+  const imageUrl = String(contact?.profilePicUrl || "").trim();
+  const fallbackText = String(contact?.name || contact?.number || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
+  return (
+    <View
+      style={[
+        styles.avatarShell,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
+    >
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+        />
+      ) : (
+        <Text style={styles.avatarFallbackText}>{fallbackText || "?"}</Text>
+      )}
     </View>
   );
 }
@@ -265,15 +292,19 @@ function TicketCard({ ticket, onPress }) {
   return (
     <Pressable onPress={onPress} style={styles.ticketCard}>
       <View style={styles.ticketTop}>
-        <Text style={styles.ticketName} numberOfLines={1}>
-          {ticket.contact?.name || ticket.contact?.number || `#${ticket.id}`}
-        </Text>
+        <View style={styles.ticketIdentity}>
+          <ContactAvatar contact={ticket.contact} size={42} />
+          <View style={styles.flexOne}>
+            <Text style={styles.ticketName} numberOfLines={1}>
+              {ticket.contact?.name || ticket.contact?.number || `#${ticket.id}`}
+            </Text>
+            <Text style={styles.ticketMeta}>
+              #{ticket.id} • {ticket.user?.name || "Sem responsavel"}
+            </Text>
+          </View>
+        </View>
         <StatusBadge status={ticket.status} />
       </View>
-
-      <Text style={styles.ticketMeta}>
-        #{ticket.id} • {ticket.user?.name || "Sem responsavel"}
-      </Text>
       <Text style={styles.ticketMeta}>
         {ticket.queue?.name || "Sem fila"} •{" "}
         {ticket.pipeline?.name || "Kanban principal"}
@@ -493,10 +524,17 @@ function ContactsScreen({
             onPress={() => onOpenContact(contact)}
             style={styles.contactCard}
           >
-            <Text style={styles.ticketName}>
-              {contact.name || contact.number || `#${contact.id}`}
-            </Text>
-            <Text style={styles.ticketMeta}>{contact.number || "Sem numero"}</Text>
+            <View style={styles.ticketIdentity}>
+              <ContactAvatar contact={contact} size={42} />
+              <View style={styles.flexOne}>
+                <Text style={styles.ticketName}>
+                  {contact.name || contact.number || `#${contact.id}`}
+                </Text>
+                <Text style={styles.ticketMeta}>
+                  {contact.number || "Sem numero"}
+                </Text>
+              </View>
+            </View>
           </Pressable>
         ))
       ) : (
@@ -539,6 +577,7 @@ function TicketDetailScreen({
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <View style={styles.appBar}>
+        <ContactAvatar contact={ticket?.contact} size={40} />
         <View style={styles.flexOne}>
           <Text style={styles.appBarTitle} numberOfLines={1}>
             {ticket?.contact?.name || ticket?.contact?.number || "Ticket"}
@@ -682,6 +721,7 @@ function ContactDetailScreen({
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <View style={styles.appBar}>
+        <ContactAvatar contact={contact} size={40} />
         <View style={styles.flexOne}>
           <Text style={styles.appBarTitle} numberOfLines={1}>
             {contact?.name || "Contato"}
@@ -1868,6 +1908,13 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 6,
   },
+  ticketIdentity: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+  },
   ticketTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1930,6 +1977,17 @@ const styles = StyleSheet.create({
   },
   badgeTextFilled: {
     color: "#ffffff",
+  },
+  avatarShell: {
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarFallbackText: {
+    color: "#1e3a8a",
+    fontWeight: "700",
+    fontSize: 16,
   },
   badgesWrap: {
     flexDirection: "row",
