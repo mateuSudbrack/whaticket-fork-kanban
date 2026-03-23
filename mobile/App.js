@@ -34,6 +34,12 @@ const ticketViews = [
   { key: "kanban", label: "Kanban" },
 ];
 
+const principalKanbanColumns = [
+  { id: "pending", title: "Aguardando", color: "#f59e0b" },
+  { id: "open", title: "Em atendimento", color: "#3f51b5" },
+  { id: "closed", title: "Resolvido", color: "#16a34a" },
+];
+
 function normalizeApiUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
 }
@@ -339,7 +345,6 @@ function TicketsHomeScreen({
   tickets,
   loading,
   error,
-  principalPipeline,
   kanbanTickets,
   kanbanLoading,
   kanbanError,
@@ -349,8 +354,6 @@ function TicketsHomeScreen({
   onRefreshKanban,
   onOpenTicket,
 }) {
-  const visibleStages = principalPipeline?.stages || [];
-
   return (
     <View style={styles.flexOne}>
       <ScrollView
@@ -418,14 +421,12 @@ function TicketsHomeScreen({
         <ScrollView contentContainerStyle={styles.screenContent}>
           <View style={styles.card}>
             <View style={styles.toolbar}>
-              <Text style={styles.toolbarText}>
-                {principalPipeline?.name || "Kanban principal"}
-              </Text>
+              <Text style={styles.toolbarText}>Kanban principal</Text>
               <ActionButton label="Atualizar" onPress={onRefreshKanban} />
             </View>
             <Text style={styles.helperText}>
-              Kanban principal atrelado aos tickets. Os demais kanbans continuam
-              disponiveis no detalhe do ticket.
+              Kanban da situacao do ticket: aguardando, em atendimento e resolvido.
+              Os demais kanbans continuam disponiveis no detalhe do ticket.
             </Text>
             {kanbanError ? <Text style={styles.errorText}>{kanbanError}</Text> : null}
           </View>
@@ -434,12 +435,12 @@ function TicketsHomeScreen({
             <View style={styles.centerState}>
               <ActivityIndicator color="#3f51b5" />
             </View>
-          ) : visibleStages.length ? (
+          ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.kanbanRow}>
-                {visibleStages.map(stage => {
+                {principalKanbanColumns.map(stage => {
                   const stageTickets = kanbanTickets.filter(
-                    ticket => String(ticket.kanbanStageId) === String(stage.id),
+                    ticket => String(ticket.status) === String(stage.id),
                   );
 
                   return (
@@ -447,10 +448,10 @@ function TicketsHomeScreen({
                       <View
                         style={[
                           styles.kanbanHeader,
-                          { backgroundColor: stage.color || "#3f51b5" },
+                          { backgroundColor: stage.color },
                         ]}
                       >
-                        <Text style={styles.kanbanHeaderText}>{stage.name}</Text>
+                        <Text style={styles.kanbanHeaderText}>{stage.title}</Text>
                         <Text style={styles.kanbanHeaderCount}>
                           {stageTickets.length}
                         </Text>
@@ -474,13 +475,6 @@ function TicketsHomeScreen({
                 })}
               </View>
             </ScrollView>
-          ) : (
-            <View style={styles.card}>
-              <Text style={styles.emptyTitle}>Kanban indisponivel</Text>
-              <Text style={styles.emptyText}>
-                Nenhum pipeline principal configurado.
-              </Text>
-            </View>
           )}
         </ScrollView>
       )}
@@ -716,6 +710,7 @@ function ContactDetailScreen({
   onBack,
   onRefresh,
   onOpenTags,
+  onStartConversation,
 }) {
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -740,6 +735,11 @@ function ContactDetailScreen({
           <Text style={styles.helperText}>Numero: {contact?.number || "-"}</Text>
           <Text style={styles.helperText}>Email: {contact?.email || "-"}</Text>
           <View style={styles.actionsRow}>
+            <ActionButton
+              label="Conversar"
+              primary
+              onPress={onStartConversation}
+            />
             <ActionButton label="Atualizar" onPress={onRefresh} />
             <ActionButton label="Etiquetas" onPress={onOpenTags} />
           </View>
@@ -1096,7 +1096,7 @@ export default function App() {
   }
 
   async function loadKanbanTickets() {
-    if (!token || !principalPipeline?.id) return;
+    if (!token) return;
 
     setKanbanLoading(true);
     setKanbanError("");
@@ -1105,7 +1105,6 @@ export default function App() {
       const params = new URLSearchParams({
         pageNumber: "1",
         showAll: "true",
-        pipelineId: String(principalPipeline.id),
       });
 
       const payload = await apiFetch(
@@ -1411,6 +1410,65 @@ export default function App() {
     }
   }
 
+  async function startConversationFromContact(contact) {
+    if (!contact?.id || !token) return;
+
+    setContactDetailError("");
+
+    try {
+      const searchValue = String(contact.number || contact.name || "").trim();
+      const params = new URLSearchParams({
+        pageNumber: "1",
+        showAll: "true",
+      });
+
+      if (searchValue) {
+        params.set("searchParam", searchValue);
+      }
+
+      const payload = await apiFetch(
+        normalizedApiUrl,
+        `/tickets?${params.toString()}`,
+        {},
+        token,
+      );
+
+      const existingTicket = (payload.tickets || []).find(ticket => {
+        return (
+          String(ticket.contact?.id) === String(contact.id) &&
+          ["open", "pending"].includes(String(ticket.status))
+        );
+      });
+
+      if (existingTicket) {
+        setSelectedContact(null);
+        setSection("tickets");
+        await openTicket(existingTicket);
+        return;
+      }
+
+      const newTicket = await apiFetch(
+        normalizedApiUrl,
+        "/tickets",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            contactId: contact.id,
+            userId: user?.id,
+            status: "open",
+          }),
+        },
+        token,
+      );
+
+      setSelectedContact(null);
+      setSection("tickets");
+      await openTicket(newTicket);
+    } catch (error) {
+      setContactDetailError(error.message);
+    }
+  }
+
   useEffect(() => {
     if (!token) return;
     loadReferenceData();
@@ -1425,7 +1483,7 @@ export default function App() {
     } else {
       loadTickets(ticketView, ticketSearch);
     }
-  }, [token, ticketView, ticketSearch, principalPipeline?.id]);
+  }, [token, ticketView, ticketSearch, isAdmin]);
 
   useEffect(() => {
     if (!token) return;
@@ -1650,6 +1708,7 @@ export default function App() {
             setTagIds(uniqueIds((selectedContact.tags || []).map(tag => tag.id)));
             setTagModalVisible(true);
           }}
+          onStartConversation={() => startConversationFromContact(selectedContact)}
         />
 
         <TagModal
@@ -1685,7 +1744,6 @@ export default function App() {
           tickets={tickets}
           loading={ticketsLoading}
           error={ticketsError}
-          principalPipeline={principalPipeline}
           kanbanTickets={kanbanTickets}
           kanbanLoading={kanbanLoading}
           kanbanError={kanbanError}
