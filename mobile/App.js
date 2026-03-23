@@ -1,7 +1,12 @@
 import Constants from "expo-constants";
+import * as BackgroundTask from "expo-background-task";
+import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
+import * as TaskManager from "expo-task-manager";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -39,6 +44,109 @@ const principalKanbanColumns = [
   { id: "open", title: "Em atendimento", color: "#3f51b5" },
   { id: "closed", title: "Resolvido", color: "#16a34a" },
 ];
+
+const AUTH_STORAGE_KEY = "whaticket_mobile_auth";
+const TICKET_SNAPSHOT_KEY = "whaticket_mobile_ticket_snapshot";
+const BACKGROUND_TASK_NAME = "whaticket-mobile-background-refresh";
+const FOREGROUND_REFRESH_INTERVAL_MS = 30000;
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
+async function getStoredJson(key) {
+  const value = await SecureStore.getItemAsync(key);
+  if (!value) return null;
+
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function setStoredJson(key, value) {
+  await SecureStore.setItemAsync(key, JSON.stringify(value));
+}
+
+function createTicketSnapshot(tickets = []) {
+  const items = {};
+  let badgeCount = 0;
+
+  tickets.forEach(ticket => {
+    items[String(ticket.id)] = {
+      id: ticket.id,
+      status: ticket.status,
+      unreadMessages: Number(ticket.unreadMessages || 0),
+      updatedAt: ticket.updatedAt || "",
+      contactName: ticket.contact?.name || ticket.contact?.number || `#${ticket.id}`,
+      lastMessage: ticket.lastMessage || "",
+    };
+    badgeCount += Number(ticket.unreadMessages || 0);
+  });
+
+  return {
+    updatedAt: new Date().toISOString(),
+    badgeCount,
+    items,
+  };
+}
+
+function collectNotificationEvents(previousSnapshot, tickets = []) {
+  const previousItems = previousSnapshot?.items || {};
+
+  return tickets
+    .map(ticket => {
+      const previous = previousItems[String(ticket.id)];
+      const currentUnread = Number(ticket.unreadMessages || 0);
+      const previousUnread = Number(previous?.unreadMessages || 0);
+      const isNewPendingTicket = !previous && String(ticket.status) === "pending";
+      const unreadIncreased = currentUnread > previousUnread;
+
+      if (!isNewPendingTicket && !unreadIncreased) {
+        return null;
+      }
+
+      return {
+        id: ticket.id,
+        title: isNewPendingTicket
+          ? `Novo ticket: ${ticket.contact?.name || ticket.contact?.number || `#${ticket.id}`}`
+          : `${ticket.contact?.name || ticket.contact?.number || `#${ticket.id}`}`,
+        body: ticket.lastMessage || "Nova atividade no ticket",
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+async function syncTicketNotifications(tickets = [], notify = true) {
+  const previousSnapshot = await getStoredJson(TICKET_SNAPSHOT_KEY);
+  const nextSnapshot = createTicketSnapshot(tickets);
+  const events = notify ? collectNotificationEvents(previousSnapshot, tickets) : [];
+
+  if (notify) {
+    for (const event of events) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: event.title,
+          body: event.body,
+          data: { ticketId: event.id },
+        },
+        trigger: null,
+      });
+    }
+  }
+
+  await Notifications.setBadgeCountAsync(nextSnapshot.badgeCount);
+  await setStoredJson(TICKET_SNAPSHOT_KEY, nextSnapshot);
+
+  return events;
+}
 
 function normalizeApiUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -85,6 +193,42 @@ async function apiFetch(apiUrl, path, options = {}, token) {
   }
 
   return payload;
+}
+
+async function fetchTicketsFromStoredSession() {
+  const storedAuth = await getStoredJson(AUTH_STORAGE_KEY);
+
+  if (!storedAuth?.email || !storedAuth?.password) {
+    return [];
+  }
+
+  const apiUrl = normalizeApiUrl(storedAuth.apiUrl || defaultApiUrl);
+  const session = await apiFetch(apiUrl, "/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email: storedAuth.email,
+      password: storedAuth.password,
+    }),
+  });
+
+  const payload = await apiFetch(
+    apiUrl,
+    "/tickets?pageNumber=1&showAll=true",
+    {},
+    session.token,
+  );
+
+  return payload.tickets || [];
+}
+
+async function runBackgroundTicketSync(notify = true) {
+  try {
+    const tickets = await fetchTicketsFromStoredSession();
+    await syncTicketNotifications(tickets, notify);
+    return true;
+  } catch (_error) {
+    return false;
+  }
 }
 
 function uniqueIds(items = []) {
@@ -183,6 +327,15 @@ function ActionButton({ label, onPress, primary = false }) {
       </Text>
     </Pressable>
   );
+}
+
+if (!TaskManager.isTaskDefined(BACKGROUND_TASK_NAME)) {
+  TaskManager.defineTask(BACKGROUND_TASK_NAME, async () => {
+    const ok = await runBackgroundTicketSync(true);
+    return ok
+      ? BackgroundTask.BackgroundTaskResult.Success
+      : BackgroundTask.BackgroundTaskResult.Failed;
+  });
 }
 
 function LoginScreen({
@@ -954,6 +1107,9 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
   const [user, setUser] = useState(null);
+  const [savedCredentials, setSavedCredentials] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [appState, setAppState] = useState(AppState.currentState);
 
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -1014,16 +1170,158 @@ export default function App() {
     pipelines.find(p => String(p.id) === String(kanbanMovePipelineId)) ||
     principalPipeline;
 
+  async function persistCredentials(nextApiUrl, nextEmail, nextPassword) {
+    const payload = {
+      apiUrl: normalizeApiUrl(nextApiUrl),
+      email: String(nextEmail || "").trim(),
+      password: String(nextPassword || ""),
+    };
+
+    await SecureStore.setItemAsync(AUTH_STORAGE_KEY, JSON.stringify(payload));
+    setSavedCredentials(payload);
+  }
+
+  async function clearStoredCredentials() {
+    await SecureStore.deleteItemAsync(AUTH_STORAGE_KEY);
+    setSavedCredentials(null);
+  }
+
+  async function performLogin(
+    credentials = {},
+    options = {},
+  ) {
+    const { persist = true } = options;
+    const targetApiUrl = normalizeApiUrl(credentials.apiUrl || apiUrl);
+    const nextEmail = String(credentials.email ?? email).trim();
+    const nextPassword = String(credentials.password ?? password);
+
+    const payload = await apiFetch(targetApiUrl, "/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        email: nextEmail,
+        password: nextPassword,
+      }),
+    });
+
+    setApiUrl(targetApiUrl);
+    setEmail(nextEmail);
+    setPassword(nextPassword);
+    setToken(payload.token);
+    setUser(payload.user);
+
+    if (persist) {
+      await persistCredentials(targetApiUrl, nextEmail, nextPassword);
+    }
+
+    return payload;
+  }
+
+  async function requestApi(path, options = {}, requestToken = token) {
+    try {
+      return await apiFetch(normalizedApiUrl, path, options, requestToken);
+    } catch (error) {
+      const message = String(error?.message || "");
+      const shouldRetry =
+        !!savedCredentials &&
+        (
+          /invalid token/i.test(message) ||
+          /session expired/i.test(message) ||
+          message.includes("401") ||
+          message.includes("403")
+        );
+
+      if (!shouldRetry) {
+        throw error;
+      }
+
+      const refreshed = await performLogin(savedCredentials, { persist: false });
+      return apiFetch(
+        normalizeApiUrl(savedCredentials.apiUrl),
+        path,
+        options,
+        refreshed.token,
+      );
+    }
+  }
+
+  async function configureNotifications() {
+    const permissions = await Notifications.getPermissionsAsync();
+    let finalStatus = permissions.status;
+
+    if (finalStatus !== "granted") {
+      const requested = await Notifications.requestPermissionsAsync();
+      finalStatus = requested.status;
+    }
+
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.HIGH,
+      });
+    }
+
+    return finalStatus === "granted";
+  }
+
+  async function registerBackgroundRefresh() {
+    try {
+      const taskManagerAvailable = await TaskManager.isAvailableAsync();
+
+      if (!taskManagerAvailable) {
+        return false;
+      }
+
+      const backgroundStatus = await BackgroundTask.getStatusAsync();
+
+      if (backgroundStatus !== BackgroundTask.BackgroundTaskStatus.Available) {
+        return false;
+      }
+
+      const registeredTasks = await TaskManager.getRegisteredTasksAsync();
+      const alreadyRegistered = registeredTasks.some(
+        task => task.taskName === BACKGROUND_TASK_NAME,
+      );
+
+      if (!alreadyRegistered) {
+        await BackgroundTask.registerTaskAsync(BACKGROUND_TASK_NAME, {});
+      }
+
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  async function refreshAppData() {
+    if (!token) return;
+
+    await Promise.all([
+      loadReferenceData(),
+      section === "contacts" ? loadContacts() : loadTickets(),
+      ticketView === "kanban" ? loadKanbanTickets() : Promise.resolve(),
+      selectedTicket?.id ? loadMessages(selectedTicket.id) : Promise.resolve(),
+    ]);
+  }
+
+  async function syncCurrentSessionNotifications(notify = false) {
+    if (!token) return;
+
+    try {
+      const payload = await requestApi("/tickets?pageNumber=1&showAll=true");
+      await syncTicketNotifications(payload.tickets || [], notify && appState !== "active");
+    } catch (_error) {}
+  }
+
   async function loadReferenceData(currentToken = token) {
     if (!currentToken) return;
 
     const [tagsData, flowsData, pipelinesData, queuesData, usersData] =
       await Promise.all([
-        apiFetch(normalizedApiUrl, "/tags", {}, currentToken),
-        apiFetch(normalizedApiUrl, "/flows", {}, currentToken),
-        apiFetch(normalizedApiUrl, "/kanban-pipelines", {}, currentToken),
-        apiFetch(normalizedApiUrl, "/queue", {}, currentToken),
-        apiFetch(normalizedApiUrl, "/users?pageNumber=1", {}, currentToken),
+        requestApi("/tags", {}, currentToken),
+        requestApi("/flows", {}, currentToken),
+        requestApi("/kanban-pipelines", {}, currentToken),
+        requestApi("/queue", {}, currentToken),
+        requestApi("/users?pageNumber=1", {}, currentToken),
       ]);
 
     setTags(Array.isArray(tagsData) ? tagsData : []);
@@ -1042,12 +1340,7 @@ export default function App() {
         params.set("searchParam", searchParam.trim());
       }
 
-      const payload = await apiFetch(
-        normalizedApiUrl,
-        `/users?${params.toString()}`,
-        {},
-        token,
-      );
+      const payload = await requestApi(`/users?${params.toString()}`);
       setUserOptions(payload.users || []);
     } catch (_error) {}
   }
@@ -1081,12 +1374,7 @@ export default function App() {
         params.set("searchParam", search.trim());
       }
 
-      const payload = await apiFetch(
-        normalizedApiUrl,
-        `/tickets?${params.toString()}`,
-        {},
-        token,
-      );
+      const payload = await requestApi(`/tickets?${params.toString()}`);
       setTickets(payload.tickets || []);
     } catch (error) {
       setTicketsError(error.message);
@@ -1107,12 +1395,7 @@ export default function App() {
         showAll: "true",
       });
 
-      const payload = await apiFetch(
-        normalizedApiUrl,
-        `/tickets?${params.toString()}`,
-        {},
-        token,
-      );
+      const payload = await requestApi(`/tickets?${params.toString()}`);
       setKanbanTickets(payload.tickets || []);
     } catch (error) {
       setKanbanError(error.message);
@@ -1132,12 +1415,7 @@ export default function App() {
       if (search.trim()) {
         params.set("searchParam", search.trim());
       }
-      const payload = await apiFetch(
-        normalizedApiUrl,
-        `/contacts?${params.toString()}`,
-        {},
-        token,
-      );
+      const payload = await requestApi(`/contacts?${params.toString()}`);
       setContacts(payload.contacts || []);
     } catch (error) {
       setContactsError(error.message);
@@ -1150,7 +1428,7 @@ export default function App() {
     if (!token || !ticketId) return;
 
     try {
-      const payload = await apiFetch(normalizedApiUrl, `/tickets/${ticketId}`, {}, token);
+      const payload = await requestApi(`/tickets/${ticketId}`);
       setSelectedTicket(payload);
       setKanbanMovePipelineId(payload.pipelineId || principalPipeline?.id || "");
     } catch (error) {
@@ -1165,12 +1443,7 @@ export default function App() {
     setMessagesError("");
 
     try {
-      const payload = await apiFetch(
-        normalizedApiUrl,
-        `/messages/${ticketId}?pageNumber=1`,
-        {},
-        token,
-      );
+      const payload = await requestApi(`/messages/${ticketId}?pageNumber=1`);
       setMessages(payload.messages || []);
     } catch (error) {
       setMessagesError(error.message);
@@ -1200,7 +1473,7 @@ export default function App() {
     setContactDetailError("");
 
     try {
-      const payload = await apiFetch(normalizedApiUrl, `/contacts/${contactId}`, {}, token);
+      const payload = await requestApi(`/contacts/${contactId}`);
       setSelectedContact(payload);
     } catch (error) {
       setContactDetailError(error.message);
@@ -1212,16 +1485,11 @@ export default function App() {
     setAuthError("");
 
     try {
-      const payload = await apiFetch(normalizedApiUrl, "/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-        }),
+      await performLogin({
+        apiUrl,
+        email,
+        password,
       });
-
-      setToken(payload.token);
-      setUser(payload.user);
       setSection("tickets");
       setTicketView("inbox");
     } catch (error) {
@@ -1231,7 +1499,10 @@ export default function App() {
     }
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await clearStoredCredentials();
+    await SecureStore.deleteItemAsync(TICKET_SNAPSHOT_KEY);
+    await Notifications.setBadgeCountAsync(0);
     setToken("");
     setUser(null);
     setPassword("");
@@ -1246,15 +1517,10 @@ export default function App() {
     setMessagesError("");
 
     try {
-      await apiFetch(
-        normalizedApiUrl,
-        `/tickets/${selectedTicket.id}`,
-        {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        },
-        token,
-      );
+      await requestApi(`/tickets/${selectedTicket.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
       await refreshCurrentTicket();
     } catch (error) {
       setMessagesError(error.message);
@@ -1269,15 +1535,10 @@ export default function App() {
     setMessagesError("");
 
     try {
-      await apiFetch(
-        normalizedApiUrl,
-        `/messages/${selectedTicket.id}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ body: draft.trim() }),
-        },
-        token,
-      );
+      await requestApi(`/messages/${selectedTicket.id}`, {
+        method: "POST",
+        body: JSON.stringify({ body: draft.trim() }),
+      });
       setDraft("");
       await refreshCurrentTicket();
     } catch (error) {
@@ -1292,15 +1553,10 @@ export default function App() {
     setContactDetailError("");
 
     try {
-      await apiFetch(
-        normalizedApiUrl,
-        `/contacts/${contactId}`,
-        {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        },
-        token,
-      );
+      await requestApi(`/contacts/${contactId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
       await Promise.all([loadContact(contactId), loadContacts()]);
       if (selectedTicket?.contact?.id === contactId) {
         await loadTicketDetail(selectedTicket.id);
@@ -1335,15 +1591,10 @@ export default function App() {
         payload.userId = null;
       }
 
-      await apiFetch(
-        normalizedApiUrl,
-        `/tickets/${selectedTicket.id}`,
-        {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        },
-        token,
-      );
+      await requestApi(`/tickets/${selectedTicket.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
       setTransferVisible(false);
       await refreshCurrentTicket();
     } catch (error) {
@@ -1357,12 +1608,9 @@ export default function App() {
     if (!selectedTicket?.id) return;
 
     try {
-      await apiFetch(
-        normalizedApiUrl,
-        `/flows/${flowId}/run/${selectedTicket.id}`,
-        { method: "POST" },
-        token,
-      );
+      await requestApi(`/flows/${flowId}/run/${selectedTicket.id}`, {
+        method: "POST",
+      });
       setFlowPickerVisible(false);
       await refreshCurrentTicket();
     } catch (error) {
@@ -1426,12 +1674,7 @@ export default function App() {
         params.set("searchParam", searchValue);
       }
 
-      const payload = await apiFetch(
-        normalizedApiUrl,
-        `/tickets?${params.toString()}`,
-        {},
-        token,
-      );
+      const payload = await requestApi(`/tickets?${params.toString()}`);
 
       const existingTicket = (payload.tickets || []).find(ticket => {
         return (
@@ -1447,19 +1690,14 @@ export default function App() {
         return;
       }
 
-      const newTicket = await apiFetch(
-        normalizedApiUrl,
-        "/tickets",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            contactId: contact.id,
-            userId: user?.id,
-            status: "open",
-          }),
-        },
-        token,
-      );
+      const newTicket = await requestApi("/tickets", {
+        method: "POST",
+        body: JSON.stringify({
+          contactId: contact.id,
+          userId: user?.id,
+          status: "open",
+        }),
+      });
 
       setSelectedContact(null);
       setSection("tickets");
@@ -1470,10 +1708,59 @@ export default function App() {
   }
 
   useEffect(() => {
+    let active = true;
+
+    const hydrateSession = async () => {
+      try {
+        const stored = await SecureStore.getItemAsync(AUTH_STORAGE_KEY);
+
+        if (!stored) {
+          if (active) setAuthReady(true);
+          return;
+        }
+
+        const parsed = JSON.parse(stored);
+
+        if (!parsed?.email || !parsed?.password) {
+          if (active) setAuthReady(true);
+          return;
+        }
+
+        if (!active) return;
+
+        setSavedCredentials(parsed);
+        setApiUrl(parsed.apiUrl || defaultApiUrl);
+        setEmail(parsed.email || "");
+        setPassword(parsed.password || "");
+
+        try {
+          await performLogin(parsed, { persist: false });
+        } catch (_error) {}
+      } finally {
+        if (active) {
+          setAuthReady(true);
+        }
+      }
+    };
+
+    hydrateSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    configureNotifications();
+    registerBackgroundRefresh();
+  }, []);
+
+  useEffect(() => {
     if (!token) return;
     loadReferenceData();
     loadTickets("inbox", "");
     loadContacts("");
+    syncCurrentSessionNotifications(false);
   }, [token]);
 
   useEffect(() => {
@@ -1494,6 +1781,53 @@ export default function App() {
     if (!transferVisible) return;
     loadUsers(transferUserSearch);
   }, [transferVisible, transferUserSearch]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", nextState => {
+      const becameActive =
+        /inactive|background/.test(appState) && nextState === "active";
+
+      setAppState(nextState);
+
+      if (becameActive && token) {
+        refreshAppData();
+        syncCurrentSessionNotifications(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [appState, token, section, ticketView, selectedTicket?.id]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const interval = setInterval(() => {
+      if (AppState.currentState !== "active") {
+        return;
+      }
+
+      refreshAppData();
+      syncCurrentSessionNotifications(true);
+    }, FOREGROUND_REFRESH_INTERVAL_MS);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [token, section, ticketView, selectedTicket?.id, appState]);
+
+  if (!authReady && !token) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.centerState}>
+          <ActivityIndicator color="#3f51b5" />
+          <Text style={styles.helperText}>Restaurando sessao...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const principalMoveOptions = [
     {

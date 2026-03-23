@@ -9,7 +9,14 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "processing",
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,6 +25,11 @@
     },
     "extra": {
       "apiUrl": "https://api-whaticket.digiyou.com.br"
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-background-task",
+      "expo-notifications"
+    ]
   }
 }

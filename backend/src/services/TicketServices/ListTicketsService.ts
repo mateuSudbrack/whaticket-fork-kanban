@@ -182,6 +182,7 @@ const ListTicketsService = async ({
     where: whereCondition,
     include: includeCondition,
     distinct: true,
+    subQuery: false,
     limit,
     offset,
     order: [["updatedAt", "DESC"]]
