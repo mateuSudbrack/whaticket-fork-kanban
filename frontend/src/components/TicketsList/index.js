@@ -153,7 +153,7 @@ const reducer = (state, action) => {
 };
 
 	const TicketsList = (props) => {
-		const { status, searchParam, showAll, selectedQueueIds, updateCount, style } =
+		const { status, searchParam, showAll, selectedQueueIds, updateCount, style, allowEmptyStatus } =
 			props;
 	const classes = useStyles();
 	const [pageNumber, setPageNumber] = useState(1);
@@ -174,12 +174,12 @@ const reducer = (state, action) => {
 	});
 
 	useEffect(() => {
-		if (!status && !searchParam) return;
+		if (!status && !searchParam && !allowEmptyStatus) return;
 		dispatch({
 			type: "LOAD_TICKETS",
 			payload: tickets,
 		});
-	}, [tickets]);
+	}, [tickets, status, searchParam, allowEmptyStatus]);
 
 	useEffect(() => {
 		const socket = openSocket();

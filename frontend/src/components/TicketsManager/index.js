@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
+import WhatsAppIcon from "@material-ui/icons/WhatsApp";
 import InputBase from "@material-ui/core/InputBase";
 import Tabs from "@material-ui/core/Tabs";
 import Tab from "@material-ui/core/Tab";
@@ -173,6 +174,12 @@ const TicketsManager = () => {
             classes={{ root: classes.tab }}
           />
           <Tab
+            value={"all"}
+            icon={<WhatsAppIcon />}
+            label={i18n.t("tickets.tabs.all.title")}
+            classes={{ root: classes.tab }}
+          />
+          <Tab
             value={"search"}
             icon={<SearchIcon />}
             label={i18n.t("tickets.tabs.search.title")}
@@ -290,6 +297,13 @@ const TicketsManager = () => {
         <TicketsList
           status="closed"
           showAll={true}
+          selectedQueueIds={selectedQueueIds}
+        />
+      </TabPanel>
+      <TabPanel value={tab} name="all" className={classes.ticketsWrapper}>
+        <TicketsList
+          showAll={true}
+          allowEmptyStatus={true}
           selectedQueueIds={selectedQueueIds}
         />
       </TabPanel>

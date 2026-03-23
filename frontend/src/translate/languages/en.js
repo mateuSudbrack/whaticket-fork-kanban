@@ -236,6 +236,7 @@ const messages = {
         tabs: {
           open: { title: "Inbox" },
           closed: { title: "Resolved" },
+          all: { title: "All" },
           search: { title: "Search" },
         },
         search: {
@@ -369,6 +370,10 @@ const messages = {
               enabled: "Enabled",
               disabled: "Disabled",
             },
+          },
+          closeOpenTicketsAfterHours: {
+            name: "Close open tickets after (hours)",
+            help: "Use 0 to disable automatic closing.",
           },
         },
       },

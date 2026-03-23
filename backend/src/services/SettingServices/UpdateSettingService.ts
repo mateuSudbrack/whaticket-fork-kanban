@@ -1,4 +1,3 @@
-import AppError from "../../errors/AppError";
 import Setting from "../../models/Setting";
 
 interface Request {
@@ -15,7 +14,10 @@ const UpdateSettingService = async ({
   });
 
   if (!setting) {
-    throw new AppError("ERR_NO_SETTING_FOUND", 404);
+    return Setting.create({
+      key,
+      value
+    });
   }
 
   await setting.update({ value });

@@ -5,6 +5,7 @@ import AppError from "../errors/AppError";
 
 import UpdateSettingService from "../services/SettingServices/UpdateSettingService";
 import ListSettingsService from "../services/SettingServices/ListSettingsService";
+import { PUBLIC_SETTINGS_KEYS } from "../services/SettingServices/defaultSettings";
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
   if (req.user.profile !== "admin") {
@@ -12,6 +13,15 @@ export const index = async (req: Request, res: Response): Promise<Response> => {
   }
 
   const settings = await ListSettingsService();
+
+  return res.status(200).json(settings);
+};
+
+export const publicIndex = async (
+  _req: Request,
+  res: Response
+): Promise<Response> => {
+  const settings = await ListSettingsService(PUBLIC_SETTINGS_KEYS);
 
   return res.status(200).json(settings);
 };

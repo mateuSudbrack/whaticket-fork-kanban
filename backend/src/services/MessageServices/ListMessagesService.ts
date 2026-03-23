@@ -1,6 +1,7 @@
 import AppError from "../../errors/AppError";
 import Message from "../../models/Message";
 import Ticket from "../../models/Ticket";
+import { Op } from "sequelize";
 import ShowTicketService from "../TicketServices/ShowTicketService";
 
 interface Request {
@@ -29,8 +30,23 @@ const ListMessagesService = async ({
   const limit = 20;
   const offset = limit * (+pageNumber - 1);
 
+  const relatedTickets = await Ticket.findAll({
+    attributes: ["id"],
+    where: {
+      contactId: ticket.contactId,
+      whatsappId: ticket.whatsappId,
+      isGroup: ticket.isGroup
+    }
+  });
+
+  const relatedTicketIds = relatedTickets.map(relatedTicket => relatedTicket.id);
+
   const { count, rows: messages } = await Message.findAndCountAll({
-    where: { ticketId },
+    where: {
+      ticketId: {
+        [Op.in]: relatedTicketIds.length ? relatedTicketIds : [ticket.id]
+      }
+    },
     limit,
     include: [
       "contact",
@@ -41,7 +57,10 @@ const ListMessagesService = async ({
       }
     ],
     offset,
-    order: [["createdAt", "DESC"]]
+    order: [
+      ["createdAt", "DESC"],
+      ["id", "DESC"]
+    ]
   });
 
   const hasMore = count > offset + messages.length;

@@ -238,6 +238,7 @@ const messages = {
         tabs: {
           open: { title: "Inbox" },
           closed: { title: "Resolvidos" },
+          all: { title: "Todas" },
           search: { title: "Busca" },
         },
         search: {
@@ -373,6 +374,10 @@ const messages = {
               enabled: "Ativado",
               disabled: "Desativado",
             },
+          },
+          closeOpenTicketsAfterHours: {
+            name: "Fechar tickets abertos após (horas)",
+            help: "Use 0 para desativar o fechamento automático.",
           },
         },
       },

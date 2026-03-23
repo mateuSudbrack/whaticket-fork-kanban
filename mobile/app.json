@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Whaticket Mobile",
+    "slug": "whaticket-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#efe4cf"
+      }
+    },
+    "extra": {
+      "apiUrl": "https://api-whaticket.digiyou.com.br"
+    }
+  }
+}

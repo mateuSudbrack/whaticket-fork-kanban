@@ -745,14 +745,22 @@ const Flows = () => {
     }
   };
 
-  const renderLookup = ({ label, value, options, getOptionLabel, onChange }) => (
+  const renderLookup = ({ label, value, options, getOptionLabel, onChange, helperText }) => (
     <Autocomplete
       options={options}
+      clearOnEscape
       getOptionLabel={getOptionLabel}
       value={options.find(option => String(option.id) === String(value || "")) || null}
       onChange={(_, option) => onChange(option ? option.id : null)}
       renderInput={params => (
-        <TextField {...params} label={label} variant="outlined" margin="dense" fullWidth />
+        <TextField
+          {...params}
+          label={label}
+          variant="outlined"
+          margin="dense"
+          fullWidth
+          helperText={helperText}
+        />
       )}
     />
   );
@@ -926,7 +934,8 @@ const Flows = () => {
               value: payload.flowId,
               options: resources.flows.filter(flow => flow.id !== form.id),
               getOptionLabel: option => option.name || "",
-              onChange: value => updatePayload("flowId", value)
+              onChange: value => updatePayload("flowId", value),
+              helperText: "Deixe em branco para disparar quando qualquer fluxo for enviado."
             })}
         </>
       );
