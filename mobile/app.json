@@ -21,7 +21,12 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#efe4cf"
-      }
+      },
+      "package": "com.anonymous.whaticketmobile",
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "extra": {
       "apiUrl": "https://api-whaticket.digiyou.com.br"
@@ -29,7 +34,16 @@
     "plugins": [
       "expo-secure-store",
       "expo-background-task",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": true,
+          "microphonePermission": "Permita o uso do microfone para enviar audios no Whaticket Mobile.",
+          "recordAudioAndroid": true
+        }
+      ]
     ]
   }
 }

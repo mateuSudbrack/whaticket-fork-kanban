@@ -16,6 +16,7 @@ import kanbanPipelineRoutes from "./kanbanPipelineRoutes";
 import kanbanStageRoutes from "./kanbanStageRoutes";
 import tagRoutes from "./tagRoutes";
 import flowRoutes from "./flowRoutes";
+import certificateRoutes from "./certificateRoutes";
 
 const routes = Router();
 
@@ -34,6 +35,7 @@ routes.use(kanbanPipelineRoutes);
 routes.use(kanbanStageRoutes);
 routes.use(tagRoutes);
 routes.use(flowRoutes);
+routes.use(certificateRoutes);
 routes.use("/api/messages", apiRoutes);
 
 export default routes;
