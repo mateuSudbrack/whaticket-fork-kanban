@@ -14,6 +14,7 @@ import RemoveContactPipelineMembershipService from "../ContactServices/RemoveCon
 import UpdateTicketService from "../TicketServices/UpdateTicketService";
 import SendWhatsAppMessage from "../WbotServices/SendWhatsAppMessage";
 import SendWhatsAppMedia from "../WbotServices/SendWhatsAppMedia";
+import SyncContactCertificateFieldsService from "../CertificateServices/SyncContactCertificateFieldsService";
 
 type FlowContext = {
   triggerType: string;
@@ -442,6 +443,11 @@ const executeAction = async (
           pipelineId: Number(payload.pipelineId)
         });
       }
+      break;
+    case "load_last_certificate_order_fields":
+      await SyncContactCertificateFieldsService({
+        contactId: ticket.contactId
+      });
       break;
     case "resolve_ticket":
       await UpdateTicketService({

@@ -17,6 +17,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -724,6 +725,56 @@ function applyCertificateCustomerLookup(current, customer) {
       customer.indication?.document || current.indicationDocument,
     indicationType: customer.indication?.type || current.indicationType,
     indicationRaw: customer.indication?.raw || current.indicationRaw,
+  };
+}
+
+function normalizeSearchLabel(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractIndicationDocument(rawValue) {
+  const match = String(rawValue || "").match(/\(([^)]+)\)/);
+  return normalizeDocumentDigits(match?.[1] || "");
+}
+
+function applyCertificateOrderToForm(current, order, products = []) {
+  const document = normalizeDocumentDigits(order?.document);
+  const personType = isCompanyDocument(document) ? "pj" : "pf";
+  const normalizedOrderProduct = normalizeSearchLabel(order?.productName);
+  const indicationDocument = extractIndicationDocument(order?.indicationRaw);
+  const matchedProduct =
+    products.find(
+      product =>
+        normalizeSearchLabel(product?.productName) === normalizedOrderProduct,
+    ) || null;
+
+  return {
+    ...current,
+    document: document || current.document,
+    personType,
+    customerName: order?.customerName || current.customerName,
+    customerEmail: order?.email || current.customerEmail,
+    customerPhone: order?.phone || current.customerPhone,
+    productSearch: order?.productName || current.productSearch,
+    selectedProductKey: matchedProduct ? createProductKey(matchedProduct) : "",
+    productCode: matchedProduct?.productCode
+      ? String(matchedProduct.productCode)
+      : current.productCode,
+    productName: matchedProduct?.productName || order?.productName || current.productName,
+    certificateValue:
+      matchedProduct?.suggestedValue || current.certificateValue,
+    indicationDocument: indicationDocument || current.indicationDocument,
+    indicationType: indicationDocument
+      ? indicationDocument.length > 11
+        ? "cnpj"
+        : "cpf"
+      : current.indicationType,
+    indicationRaw: order?.indicationRaw || current.indicationRaw,
   };
 }
 
@@ -1495,7 +1546,7 @@ function MainShell({
   );
 }
 
-function TicketCard({ ticket, onPress }) {
+function TicketCard({ ticket, onPress, certificateSummary = null }) {
   return (
     <Pressable onPress={onPress} style={styles.ticketCard}>
       <View style={styles.ticketTop}>
@@ -1535,6 +1586,20 @@ function TicketCard({ ticket, onPress }) {
             color={tag.color || "#64748b"}
           />
         ))}
+        {certificateSummary?.protocol ? (
+          <Badge
+            label={`Protocolo ${certificateSummary.protocol}`}
+            color="#3f51b5"
+          />
+        ) : null}
+        <CertificatePaymentStatusBadge
+          paymentStatus={certificateSummary?.paymentStatus}
+        />
+        <CertificateDeliveryStatusBadge
+          paymentSentStatus={certificateSummary?.paymentSentStatus}
+          serviceSentStatus={certificateSummary?.serviceSentStatus}
+          approvalSentStatus={certificateSummary?.approvalSentStatus}
+        />
       </View>
     </Pressable>
   );
@@ -1589,6 +1654,7 @@ function TicketsHomeScreen({
   view,
   search,
   tickets,
+  inboxCertificateSummaries,
   loading,
   error,
   pipelines,
@@ -1617,7 +1683,10 @@ function TicketsHomeScreen({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.topTabs}
+        contentContainerStyle={[
+          styles.topTabs,
+          view === "kanban" && styles.topTabsCompactShell,
+        ]}
       >
         {ticketViews.map(item => (
           <Pressable
@@ -1625,12 +1694,14 @@ function TicketsHomeScreen({
             onPress={() => onChangeView(item.key)}
             style={[
               styles.topTab,
+              view === "kanban" && styles.topTabCompact,
               view === item.key && styles.topTabActive,
             ]}
           >
             <Text
               style={[
                 styles.topTabText,
+                view === "kanban" && styles.topTabTextCompact,
                 view === item.key && styles.topTabTextActive,
               ]}
             >
@@ -1665,6 +1736,9 @@ function TicketsHomeScreen({
               <TicketCard
                 key={ticket.id}
                 ticket={ticket}
+                certificateSummary={
+                  inboxCertificateSummaries[String(ticket.contact?.id || "")]
+                }
                 onPress={() => onOpenTicket(ticket)}
               />
             ))
@@ -1758,6 +1832,11 @@ function TicketsHomeScreen({
                             <TicketCard
                               key={item.id}
                               ticket={item}
+                              certificateSummary={
+                                inboxCertificateSummaries[
+                                  String(item.contact?.id || "")
+                                ]
+                              }
                               onPress={() => onOpenTicket(item)}
                             />
                           ) : (
@@ -1916,6 +1995,21 @@ function CertificateDeliveryStatusBadge({
   }
 
   return null;
+}
+
+function buildTicketCertificateSummary(order) {
+  if (!order) {
+    return null;
+  }
+
+  return {
+    identifier: order.identifier || "",
+    protocol: order.protocol || "",
+    paymentStatus: order.paymentStatus || "",
+    paymentSentStatus: order.paymentSentStatus || "",
+    serviceSentStatus: order.serviceSentStatus || "",
+    approvalSentStatus: order.approvalSentStatus || "",
+  };
 }
 
 function CertificateOrderCard({ order }) {
@@ -2755,6 +2849,7 @@ function TicketDetailScreen({
   onReopen,
   onOpenTransfer,
   onOpenContact,
+  onCreateCertificateOrder,
   onOpenTags,
   onOpenFlow,
   onOpenKanbanMove,
@@ -2797,13 +2892,7 @@ function TicketDetailScreen({
         style={styles.flexOne}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView
-          ref={conversationScrollRef}
-          contentContainerStyle={styles.screenContent}
-          onContentSizeChange={() => {
-            conversationScrollRef.current?.scrollToEnd({ animated: false });
-          }}
-        >
+        <View style={styles.ticketActionPanel}>
           <View style={styles.card}>
             <View style={styles.ticketTop}>
               <Text style={styles.sectionTitle}>Acoes do ticket</Text>
@@ -2832,6 +2921,7 @@ function TicketDetailScreen({
 
             <View style={styles.actionsRow}>
               <ActionButton label="👤" onPress={onOpenContact} />
+              <ActionButton label="📄 Pedido" onPress={onCreateCertificateOrder} />
               <ActionButton label="🏷" onPress={onOpenTags} />
               <ActionButton label="⚡" onPress={onOpenFlow} />
               <ActionButton label="▥" onPress={onOpenKanbanMove} />
@@ -2850,7 +2940,15 @@ function TicketDetailScreen({
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
+        </View>
 
+        <ScrollView
+          ref={conversationScrollRef}
+          contentContainerStyle={styles.screenContent}
+          onContentSizeChange={() => {
+            conversationScrollRef.current?.scrollToEnd({ animated: false });
+          }}
+        >
           {loading ? (
             <View style={styles.centerState}>
               <ActivityIndicator color="#3f51b5" />
@@ -3455,6 +3553,7 @@ export default function App() {
   const [ticketView, setTicketView] = useState("inbox");
   const [ticketSearch, setTicketSearch] = useState("");
   const [tickets, setTickets] = useState([]);
+  const [inboxCertificateSummaries, setInboxCertificateSummaries] = useState({});
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [ticketsError, setTicketsError] = useState("");
 
@@ -3483,6 +3582,14 @@ export default function App() {
     useState("");
   const [contactCertificateOrdersFetched, setContactCertificateOrdersFetched] =
     useState(false);
+  const [ticketCertificateOrderPickerVisible, setTicketCertificateOrderPickerVisible] =
+    useState(false);
+  const [ticketCertificateOrderPickerLoading, setTicketCertificateOrderPickerLoading] =
+    useState(false);
+  const [ticketCertificateOrderPickerError, setTicketCertificateOrderPickerError] =
+    useState("");
+  const [ticketCertificateOrderPickerOrders, setTicketCertificateOrderPickerOrders] =
+    useState([]);
 
   const [certificateOrderSearch, setCertificateOrderSearch] = useState("");
   const [certificateDateRange, setCertificateDateRange] = useState(
@@ -3943,11 +4050,62 @@ export default function App() {
       const payload = await requestCertificates(
         `/lookups/create-order-products${query}`,
       );
-      setCertificateProducts(payload.products || []);
+      const nextProducts = payload.products || [];
+      setCertificateProducts(nextProducts);
+      return nextProducts;
     } catch (error) {
       setCertificateOrdersError(error.message);
+      return [];
     } finally {
       setCertificateProductsLoading(false);
+    }
+  }
+
+  async function openCreateOrderFromTicket() {
+    if (!selectedTicket?.contact?.id) {
+      return;
+    }
+
+    setTicketCertificateOrderPickerLoading(true);
+    setTicketCertificateOrderPickerError("");
+    setTicketCertificateOrderPickerVisible(true);
+
+    try {
+      const payload = await requestApi(
+        `/contacts/${selectedTicket.contact.id}/certificate-orders?page=1&limit=20&all=true`,
+      );
+      setTicketCertificateOrderPickerOrders(payload.orders || []);
+    } catch (error) {
+      setTicketCertificateOrderPickerOrders([]);
+      setTicketCertificateOrderPickerError(error.message);
+    } finally {
+      setTicketCertificateOrderPickerLoading(false);
+    }
+  }
+
+  async function hydrateCreateOrderFromSelectedTicketOrder(order) {
+    if (!order) {
+      return;
+    }
+
+    const personType = isCompanyDocument(order.document) ? "pj" : "pf";
+    const nextProducts = (await loadCertificateProducts(personType)) || [];
+    const nextForm = applyCertificateOrderToForm(
+      { ...EMPTY_CERTIFICATE_CREATE_FORM, personType },
+      order,
+      nextProducts,
+    );
+
+    setCertificateCreateForm(nextForm);
+    setLastCertificateLookupDocument("");
+    setTicketCertificateOrderPickerVisible(false);
+    setSection("certificates");
+    setCertificateView("create");
+    setSelectedTicket(null);
+    setMessages([]);
+
+    if (normalizeDocumentDigits(order.document)) {
+      await lookupCertificateCustomer(order.document, { force: true });
     }
   }
 
@@ -4442,6 +4600,45 @@ export default function App() {
         setKanbanLoading(false);
       }
     }
+  }
+
+  async function loadInboxCertificateSummaries(nextTickets = tickets) {
+    if (!token || !isAdmin) {
+      setInboxCertificateSummaries({});
+      return;
+    }
+
+    const recentTickets = (nextTickets || [])
+      .filter(ticket => ticket?.contact?.id)
+      .slice(0, 10);
+
+    if (!recentTickets.length) {
+      setInboxCertificateSummaries({});
+      return;
+    }
+
+    try {
+      const results = await Promise.all(
+        recentTickets.map(async ticket => {
+          const payload = await requestCertificates(
+            `/orders/by-contact/${ticket.contact.id}?page=1&limit=1&all=true`,
+          );
+          return [
+            String(ticket.contact.id),
+            buildTicketCertificateSummary(payload?.orders?.[0]),
+          ];
+        }),
+      );
+
+      setInboxCertificateSummaries(
+        results.reduce((acc, [contactId, summary]) => {
+          if (summary) {
+            acc[contactId] = summary;
+          }
+          return acc;
+        }, {}),
+      );
+    } catch (_error) {}
   }
 
   async function loadContacts(search = contactSearch, options = {}) {
@@ -5101,6 +5298,15 @@ export default function App() {
   }, [token, ticketView, ticketSearch, isAdmin, selectedKanbanPipelineId, pipelines]);
 
   useEffect(() => {
+    if (section !== "tickets" || ticketView !== "inbox") {
+      setInboxCertificateSummaries({});
+      return;
+    }
+
+    loadInboxCertificateSummaries(tickets);
+  }, [section, ticketView, tickets, token, isAdmin]);
+
+  useEffect(() => {
     if (!token) return;
     loadContacts(contactSearch);
   }, [token, contactSearch]);
@@ -5141,6 +5347,82 @@ export default function App() {
     if (!transferVisible) return;
     loadUsers(transferUserSearch);
   }, [transferVisible, transferUserSearch]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (showCertificateRealtime) {
+        setShowCertificateRealtime(false);
+        return true;
+      }
+
+      if (selectedContact) {
+        setSelectedContact(null);
+        return true;
+      }
+
+      if (selectedTicket) {
+        if (recording) {
+          audioRecorder.stop().catch(() => {});
+          setRecording(false);
+        }
+        setSelectedTicket(null);
+        setMessages([]);
+        return true;
+      }
+
+      if (tagModalVisible) {
+        setTagModalVisible(false);
+        return true;
+      }
+
+      if (flowPickerVisible) {
+        setFlowPickerVisible(false);
+        return true;
+      }
+
+      if (transferVisible) {
+        setTransferVisible(false);
+        return true;
+      }
+
+      if (kanbanMoveVisible) {
+        setKanbanMoveVisible(false);
+        return true;
+      }
+
+      if (section !== "tickets") {
+        setSection("tickets");
+        return true;
+      }
+
+      if (section === "tickets" && ticketView !== "inbox") {
+        setTicketView("inbox");
+        return true;
+      }
+
+      if (section === "certificates" && certificateView !== "orders") {
+        setCertificateView("orders");
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => subscription.remove();
+  }, [
+    audioRecorder,
+    certificateView,
+    flowPickerVisible,
+    kanbanMoveVisible,
+    recording,
+    section,
+    selectedContact,
+    selectedTicket,
+    showCertificateRealtime,
+    tagModalVisible,
+    ticketView,
+    transferVisible,
+  ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", nextState => {
@@ -5235,6 +5517,55 @@ export default function App() {
     );
   }
 
+  if (selectedContact) {
+    return (
+      <>
+        <ContactDetailScreen
+          contact={selectedContact}
+          error={contactDetailError}
+          extraPipelines={extraContactPipelines}
+          selectedExtraPipelineId={selectedContactPipelineId}
+          selectedExtraStageId={selectedContactStageId}
+          contactPipelineSaving={contactPipelineSaving}
+          certificateOrders={contactCertificateOrders}
+          certificateOrdersLoading={contactCertificateOrdersLoading}
+          certificateOrdersError={contactCertificateOrdersError}
+          certificateOrdersFetched={contactCertificateOrdersFetched}
+          onBack={() => setSelectedContact(null)}
+          onRefresh={() => loadContact(selectedContact.id)}
+          onOpenTags={() => {
+            setTagTarget("contact");
+            setTagIds(uniqueIds((selectedContact.tags || []).map(tag => tag.id)));
+            setTagModalVisible(true);
+          }}
+          onStartConversation={() => startConversationFromContact(selectedContact)}
+          onLoadCertificateOrders={() =>
+            loadCertificateOrdersForContact(selectedContact.id)
+          }
+          onSelectExtraPipeline={pipelineId => {
+            setSelectedContactPipelineId(String(pipelineId));
+            setSelectedContactStageId("");
+          }}
+          onSelectExtraStage={stageId => setSelectedContactStageId(String(stageId))}
+          onAddExtraPipeline={addContactToExtraPipeline}
+          onMoveExtraPipelineStage={moveContactExtraPipelineStage}
+          onRemoveExtraPipeline={removeContactFromExtraPipeline}
+        />
+
+        <TagModal
+          visible={tagModalVisible}
+          title="Etiquetas do contato"
+          tags={tags}
+          selectedIds={tagIds}
+          saving={tagSaving}
+          onToggle={tagId => setTagIds(current => toggleId(current, tagId))}
+          onClose={() => setTagModalVisible(false)}
+          onSave={saveTags}
+        />
+      </>
+    );
+  }
+
   if (selectedTicket) {
     return (
       <>
@@ -5281,10 +5612,9 @@ export default function App() {
               return;
             }
             setSelectedContact(selectedTicket.contact);
-            setSelectedTicket(null);
-            setSection("contacts");
             await loadContact(selectedTicket.contact?.id);
           }}
+          onCreateCertificateOrder={openCreateOrderFromTicket}
           onOpenTags={() => {
             setTagTarget("ticket");
             setTagIds(uniqueIds((selectedTicket.tags || []).map(tag => tag.id)));
@@ -5367,54 +5697,40 @@ export default function App() {
           onClose={() => setTagModalVisible(false)}
           onSave={saveTags}
         />
-      </>
-    );
-  }
 
-  if (selectedContact) {
-    return (
-      <>
-        <ContactDetailScreen
-          contact={selectedContact}
-          error={contactDetailError}
-          extraPipelines={extraContactPipelines}
-          selectedExtraPipelineId={selectedContactPipelineId}
-          selectedExtraStageId={selectedContactStageId}
-          contactPipelineSaving={contactPipelineSaving}
-          certificateOrders={contactCertificateOrders}
-          certificateOrdersLoading={contactCertificateOrdersLoading}
-          certificateOrdersError={contactCertificateOrdersError}
-          certificateOrdersFetched={contactCertificateOrdersFetched}
-          onBack={() => setSelectedContact(null)}
-          onRefresh={() => loadContact(selectedContact.id)}
-          onOpenTags={() => {
-            setTagTarget("contact");
-            setTagIds(uniqueIds((selectedContact.tags || []).map(tag => tag.id)));
-            setTagModalVisible(true);
-          }}
-          onStartConversation={() => startConversationFromContact(selectedContact)}
-          onLoadCertificateOrders={() =>
-            loadCertificateOrdersForContact(selectedContact.id)
+        <PickerModal
+          visible={ticketCertificateOrderPickerVisible}
+          title="Reaproveitar pedido"
+          items={
+            ticketCertificateOrderPickerLoading
+              ? [
+                  {
+                    id: "loading",
+                    label: "Carregando pedidos...",
+                    description: "Aguarde um instante.",
+                  },
+                ]
+              : ticketCertificateOrderPickerError
+                ? [
+                    {
+                      id: "error",
+                      label: "Falha ao carregar pedidos",
+                      description: ticketCertificateOrderPickerError,
+                    },
+                  ]
+                : ticketCertificateOrderPickerOrders.map(order => ({
+                    id: order.identifier || order.protocol || Math.random(),
+                    label: `${order.customerName || "Cliente"} • #${order.identifier || "-"}`,
+                    description: `${order.protocol || "Sem protocolo"} • ${order.productName || "Sem produto"}`,
+                    order,
+                  }))
           }
-          onSelectExtraPipeline={pipelineId => {
-            setSelectedContactPipelineId(String(pipelineId));
-            setSelectedContactStageId("");
+          onClose={() => setTicketCertificateOrderPickerVisible(false)}
+          onSelect={item => {
+            if (item.order) {
+              hydrateCreateOrderFromSelectedTicketOrder(item.order);
+            }
           }}
-          onSelectExtraStage={stageId => setSelectedContactStageId(String(stageId))}
-          onAddExtraPipeline={addContactToExtraPipeline}
-          onMoveExtraPipelineStage={moveContactExtraPipelineStage}
-          onRemoveExtraPipeline={removeContactFromExtraPipeline}
-        />
-
-        <TagModal
-          visible={tagModalVisible}
-          title="Etiquetas do contato"
-          tags={tags}
-          selectedIds={tagIds}
-          saving={tagSaving}
-          onToggle={tagId => setTagIds(current => toggleId(current, tagId))}
-          onClose={() => setTagModalVisible(false)}
-          onSave={saveTags}
         />
       </>
     );
@@ -5443,6 +5759,7 @@ export default function App() {
           view={ticketView}
           search={ticketSearch}
           tickets={tickets}
+          inboxCertificateSummaries={inboxCertificateSummaries}
           loading={ticketsLoading}
           error={ticketsError}
           pipelines={pipelines}
@@ -5462,7 +5779,6 @@ export default function App() {
           onOpenContact={async contact => {
             if (!contact?.id) return;
             setSelectedContact(contact);
-            setSection("contacts");
             await loadContact(contact.id);
           }}
         />
@@ -5760,6 +6076,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 8,
   },
+  topTabsCompactShell: {
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
   topTabsCompact: {
     gap: 8,
     paddingBottom: 4,
@@ -5770,12 +6090,19 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#e2e8f0",
   },
+  topTabCompact: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
   topTabActive: {
     backgroundColor: "#3f51b5",
   },
   topTabText: {
     color: "#334155",
     fontWeight: "700",
+  },
+  topTabTextCompact: {
+    fontSize: 12,
   },
   topTabTextActive: {
     color: "#ffffff",
@@ -6023,6 +6350,11 @@ const styles = StyleSheet.create({
   },
   actionButtonTextPrimary: {
     color: "#ffffff",
+  },
+  ticketActionPanel: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
   messagesList: {
     gap: 10,

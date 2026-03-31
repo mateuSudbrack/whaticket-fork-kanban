@@ -92,6 +92,7 @@ const actionOptions = [
   { value: "add_contact_to_pipeline", label: "Adicionar contato a um pipeline" },
   { value: "move_contact_pipeline_stage", label: "Mover contato no pipeline" },
   { value: "remove_contact_from_pipeline", label: "Remover contato do pipeline" },
+  { value: "load_last_certificate_order_fields", label: "Carregar ultimo pedido nos campos do contato" },
   { value: "resolve_ticket", label: "Resolver conversa" },
   { value: "stop_automations", label: "Parar automacoes" }
 ];
@@ -1295,6 +1296,11 @@ const Flows = () => {
             getOptionLabel: option => option.name || "",
             onChange: value => updatePayload("pipelineId", value)
           })}
+        {selectedNode.type === "load_last_certificate_order_fields" && (
+          <Typography variant="body2" color="textSecondary">
+            Carrega os dados do pedido mais recente do contato nos campos globais, para uso em placeholders e disparos seguintes.
+          </Typography>
+        )}
       </>
     );
   };

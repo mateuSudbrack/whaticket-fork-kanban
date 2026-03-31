@@ -22,6 +22,7 @@ export const FLOW_ACTION_TYPES = [
   "add_contact_to_pipeline",
   "move_contact_pipeline_stage",
   "remove_contact_from_pipeline",
+  "load_last_certificate_order_fields",
   "resolve_ticket",
   "stop_automations"
 ] as const;

@@ -17,6 +17,8 @@ import ListContactPipelineMembershipsService from "../services/ContactServices/L
 import UpsertContactPipelineMembershipService from "../services/ContactServices/UpsertContactPipelineMembershipService";
 import RemoveContactPipelineMembershipService from "../services/ContactServices/RemoveContactPipelineMembershipService";
 import ListPipelineContactsService from "../services/ContactServices/ListPipelineContactsService";
+import { listCertificateOrdersByContact } from "../services/CertificateServices/CertificateGatewayService";
+import SyncContactCertificateFieldsService from "../services/CertificateServices/SyncContactCertificateFieldsService";
 
 type IndexQuery = {
   searchParam: string;
@@ -126,6 +128,39 @@ export const listByPipeline = async (
   });
 
   return res.status(200).json({ memberships });
+};
+
+export const listCertificateOrders = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const payload = await listCertificateOrdersByContact(req.params.contactId, {
+    page: Number(req.query.page || 1),
+    limit: Number(req.query.limit || 20),
+    startDate: String(req.query.startDate || ""),
+    endDate: String(req.query.endDate || ""),
+    all: String(req.query.all || "true").toLowerCase() === "true"
+  });
+
+  return res.status(200).json(payload);
+};
+
+export const loadCertificateFields = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const payload = await SyncContactCertificateFieldsService({
+    contactId: req.params.contactId,
+    orderIdentifier: req.body?.orderIdentifier || null
+  });
+
+  const io = getIO();
+  io.emit("contact", {
+    action: "update",
+    contact: payload.contact
+  });
+
+  return res.status(200).json(payload);
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {

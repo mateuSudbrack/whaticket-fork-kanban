@@ -21,6 +21,16 @@ contactRoutes.get(
 
 contactRoutes.get("/contacts/:contactId", isAuth, ContactController.show);
 contactRoutes.get(
+  "/contacts/:contactId/certificate-orders",
+  isAuth,
+  ContactController.listCertificateOrders
+);
+contactRoutes.post(
+  "/contacts/:contactId/certificate-fields/load",
+  isAuth,
+  ContactController.loadCertificateFields
+);
+contactRoutes.get(
   "/contacts/:contactId/pipelines",
   isAuth,
   ContactController.listPipelineMemberships

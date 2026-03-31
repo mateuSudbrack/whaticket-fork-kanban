@@ -13,6 +13,7 @@ import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
 import TextField from "@material-ui/core/TextField";
 import MenuItem from "@material-ui/core/MenuItem";
+import { toast } from "react-toastify";
 
 import { i18n } from "../../translate/i18n";
 
@@ -21,6 +22,7 @@ import ContactDrawerSkeleton from "../ContactDrawerSkeleton";
 import MarkdownWrapper from "../MarkdownWrapper";
 import TagEditorDialog from "../TagEditorDialog";
 import api from "../../services/api";
+import toastError from "../../errors/toastError";
 
 const drawerWidth = 320;
 
@@ -123,6 +125,7 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, loading, onContactUpd
 	const [selectedPipelineId, setSelectedPipelineId] = useState("");
 	const [selectedStageId, setSelectedStageId] = useState("");
 	const [savingMembership, setSavingMembership] = useState(false);
+	const [loadingCertificateFields, setLoadingCertificateFields] = useState(false);
 
 	useEffect(() => {
 		if (!open) {
@@ -232,6 +235,28 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, loading, onContactUpd
 		setSavingMembership(false);
 	};
 
+	const handleLoadLatestCertificateFields = async () => {
+		if (!contact?.id) {
+			return;
+		}
+
+		setLoadingCertificateFields(true);
+		try {
+			const { data } = await api.post(`/contacts/${contact.id}/certificate-fields/load`);
+			if (onContactUpdate && data?.contact) {
+				onContactUpdate(data.contact);
+			}
+			toast.success(
+				data?.order?.protocol
+					? `Campos atualizados com o pedido ${data.order.protocol}`
+					: "Campos atualizados com o ultimo pedido"
+			);
+		} catch (error) {
+			toastError(error);
+		}
+		setLoadingCertificateFields(false);
+	};
+
 	return (
 		<Drawer
 			className={classes.drawer}
@@ -321,6 +346,20 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, loading, onContactUpd
 								</Typography>
 							</Paper>
 						))}
+					</Paper>
+					<Paper square variant="outlined" className={classes.sectionCard}>
+						<Typography variant="subtitle1">Pedido mais recente</Typography>
+						<Typography variant="body2" color="textSecondary">
+							Carregue nome, CPF/CNPJ, protocolo, email e demais dados do ultimo pedido nos campos do contato para usar em placeholders e automacoes.
+						</Typography>
+						<Button
+							variant="outlined"
+							color="primary"
+							disabled={loadingCertificateFields}
+							onClick={handleLoadLatestCertificateFields}
+						>
+							{loadingCertificateFields ? "Carregando..." : "Carregar ultimo pedido"}
+						</Button>
 					</Paper>
 					<Paper square variant="outlined" className={classes.sectionCard}>
 						<Typography variant="subtitle1">Pipelines do contato</Typography>
