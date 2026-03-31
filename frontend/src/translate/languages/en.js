@@ -375,6 +375,26 @@ const messages = {
             name: "Close open tickets after (hours)",
             help: "Use 0 to disable automatic closing.",
           },
+          appName: {
+            name: "Application name",
+            help: "Used on login, the web header, and the mobile app.",
+          },
+          appLogoUrl: {
+            name: "Logo URL",
+            help: "Shown on login and in the system header.",
+          },
+          mobileAppLatestVersion: {
+            name: "Latest mobile app version",
+            help: "Version checked by the app on launch.",
+          },
+          mobileAppDownloadUrl: {
+            name: "App update URL",
+            help: "If empty, the app uses the default public APK URL.",
+          },
+          downloadApp: {
+            name: "Mobile app",
+            button: "Download APK",
+          },
         },
       },
       messagesList: {

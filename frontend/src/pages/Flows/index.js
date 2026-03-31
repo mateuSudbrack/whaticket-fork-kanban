@@ -89,6 +89,9 @@ const actionOptions = [
   { value: "move_main_kanban_stage", label: "Mover etapa no kanban principal" },
   { value: "move_pipeline_stage", label: "Mover etapa no pipeline" },
   { value: "assign_pipeline", label: "Adicionar a um pipeline" },
+  { value: "add_contact_to_pipeline", label: "Adicionar contato a um pipeline" },
+  { value: "move_contact_pipeline_stage", label: "Mover contato no pipeline" },
+  { value: "remove_contact_from_pipeline", label: "Remover contato do pipeline" },
   { value: "resolve_ticket", label: "Resolver conversa" },
   { value: "stop_automations", label: "Parar automacoes" }
 ];
@@ -1232,6 +1235,63 @@ const Flows = () => {
             label: "Pipeline",
             value: payload.pipelineId,
             options: resources.pipelines,
+            getOptionLabel: option => option.name || "",
+            onChange: value => updatePayload("pipelineId", value)
+          })}
+        {selectedNode.type === "add_contact_to_pipeline" &&
+          renderLookup({
+            label: "Pipeline do contato",
+            value: payload.pipelineId,
+            options: resources.pipelines.filter(
+              option =>
+                String(option.name || "").trim().toLowerCase() !== "pipeline principal"
+            ),
+            getOptionLabel: option => option.name || "",
+            onChange: value => updatePayload("pipelineId", value)
+          })}
+        {selectedNode.type === "add_contact_to_pipeline" &&
+          renderLookup({
+            label: "Etapa do contato",
+            value: payload.kanbanStageId,
+            options: stageOptions.filter(
+              option =>
+                !payload.pipelineId ||
+                String(option.pipelineId) === String(payload.pipelineId)
+            ),
+            getOptionLabel: option => `${option.pipelineName || ""} • ${option.name || ""}`,
+            onChange: value => updatePayload("kanbanStageId", value)
+          })}
+        {selectedNode.type === "move_contact_pipeline_stage" &&
+          renderLookup({
+            label: "Pipeline do contato",
+            value: payload.pipelineId,
+            options: resources.pipelines.filter(
+              option =>
+                String(option.name || "").trim().toLowerCase() !== "pipeline principal"
+            ),
+            getOptionLabel: option => option.name || "",
+            onChange: value => updatePayload("pipelineId", value)
+          })}
+        {selectedNode.type === "move_contact_pipeline_stage" &&
+          renderLookup({
+            label: "Nova etapa do contato",
+            value: payload.kanbanStageId,
+            options: stageOptions.filter(
+              option =>
+                !payload.pipelineId ||
+                String(option.pipelineId) === String(payload.pipelineId)
+            ),
+            getOptionLabel: option => `${option.pipelineName || ""} • ${option.name || ""}`,
+            onChange: value => updatePayload("kanbanStageId", value)
+          })}
+        {selectedNode.type === "remove_contact_from_pipeline" &&
+          renderLookup({
+            label: "Pipeline do contato",
+            value: payload.pipelineId,
+            options: resources.pipelines.filter(
+              option =>
+                String(option.name || "").trim().toLowerCase() !== "pipeline principal"
+            ),
             getOptionLabel: option => option.name || "",
             onChange: value => updatePayload("pipelineId", value)
           })}

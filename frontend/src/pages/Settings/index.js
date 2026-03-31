@@ -7,9 +7,11 @@ import Typography from "@material-ui/core/Typography";
 import Container from "@material-ui/core/Container";
 import Select from "@material-ui/core/Select";
 import TextField from "@material-ui/core/TextField";
+import Button from "@material-ui/core/Button";
 import { toast } from "react-toastify";
 
 import api from "../../services/api";
+import { getBackendUrl } from "../../config";
 import { i18n } from "../../translate/i18n.js";
 import toastError from "../../errors/toastError";
 
@@ -27,6 +29,13 @@ const useStyles = makeStyles(theme => ({
 		marginBottom: 12,
 
 	},
+	paperColumn: {
+		padding: theme.spacing(2),
+		display: "flex",
+		flexDirection: "column",
+		gap: theme.spacing(1),
+		marginBottom: 12,
+	},
 
 	settingOption: {
 		marginLeft: "auto",
@@ -39,16 +48,39 @@ const useStyles = makeStyles(theme => ({
 
 const Settings = () => {
 	const classes = useStyles();
+	const backendUrl = (getBackendUrl() || "").replace(/\/$/, "");
+	const fallbackMobileAppUrl = backendUrl ? `${backendUrl}/public/whaticket-mobile.apk` : "";
 
 	const [settings, setSettings] = useState([]);
 	const [textSettings, setTextSettings] = useState({
 		closeOpenTicketsAfterHours: "0",
+		appName: "Whaticket",
+		appLogoUrl: "",
+		mobileAppLatestVersion: "0.1.0",
+		mobileAppDownloadUrl: "",
 	});
 
 	const defaultSettingValues = {
 		userCreation: "enabled",
 		userApiToken: "",
 		closeOpenTicketsAfterHours: "0",
+		appName: "Whaticket",
+		appLogoUrl: "",
+		mobileAppLatestVersion: "0.1.0",
+		mobileAppDownloadUrl: "",
+	};
+
+	const syncTextSettings = data => {
+		setTextSettings({
+			closeOpenTicketsAfterHours:
+				data.find(s => s.key === "closeOpenTicketsAfterHours")?.value || "0",
+			appName: data.find(s => s.key === "appName")?.value || "Whaticket",
+			appLogoUrl: data.find(s => s.key === "appLogoUrl")?.value || "",
+			mobileAppLatestVersion:
+				data.find(s => s.key === "mobileAppLatestVersion")?.value || "0.1.0",
+			mobileAppDownloadUrl:
+				data.find(s => s.key === "mobileAppDownloadUrl")?.value || "",
+		});
 	};
 
 	useEffect(() => {
@@ -56,10 +88,7 @@ const Settings = () => {
 			try {
 				const { data } = await api.get("/settings");
 				setSettings(data);
-				setTextSettings({
-					closeOpenTicketsAfterHours:
-						data.find(s => s.key === "closeOpenTicketsAfterHours")?.value || "0",
-				});
+				syncTextSettings(data);
 			} catch (err) {
 				toastError(err);
 			}
@@ -80,14 +109,9 @@ const Settings = () => {
 					} else {
 						aux.push(data.setting);
 					}
+					syncTextSettings(aux);
 					return aux;
 				});
-				if (data.setting.key === "closeOpenTicketsAfterHours") {
-					setTextSettings(prevState => ({
-						...prevState,
-						closeOpenTicketsAfterHours: data.setting.value || "0",
-					}));
-				}
 			}
 		});
 
@@ -120,7 +144,10 @@ const Settings = () => {
 
 	const handleBlurTextSetting = async e => {
 		const settingKey = e.target.name;
-		const normalizedValue = String(Math.max(0, Number(e.target.value || 0)));
+		const normalizedValue =
+			settingKey === "closeOpenTicketsAfterHours"
+				? String(Math.max(0, Number(e.target.value || 0)))
+				: String(e.target.value || "").trim();
 
 		setTextSettings(prevState => ({
 			...prevState,
@@ -144,6 +171,8 @@ const Settings = () => {
 	const getSettingValue = key => {
 		return settings.find(s => s.key === key)?.value || defaultSettingValues[key] || "";
 	};
+
+	const mobileAppUrl = getSettingValue("mobileAppDownloadUrl") || fallbackMobileAppUrl;
 
 	return (
 		<div className={classes.root}>
@@ -193,7 +222,71 @@ const Settings = () => {
 					/>
 				</Paper>
 
-				<Paper className={classes.paper}>
+				<Paper className={classes.paperColumn}>
+					<Typography variant="body1">
+						{i18n.t("settings.settings.appName.name")}
+					</Typography>
+					<TextField
+						name="appName"
+						margin="dense"
+						variant="outlined"
+						fullWidth
+						value={textSettings.appName}
+						onChange={handleTextSettingChange}
+						onBlur={handleBlurTextSetting}
+						helperText={i18n.t("settings.settings.appName.help")}
+					/>
+				</Paper>
+
+				<Paper className={classes.paperColumn}>
+					<Typography variant="body1">
+						{i18n.t("settings.settings.appLogoUrl.name")}
+					</Typography>
+					<TextField
+						name="appLogoUrl"
+						margin="dense"
+						variant="outlined"
+						fullWidth
+						value={textSettings.appLogoUrl}
+						onChange={handleTextSettingChange}
+						onBlur={handleBlurTextSetting}
+						helperText={i18n.t("settings.settings.appLogoUrl.help")}
+					/>
+				</Paper>
+
+				<Paper className={classes.paperColumn}>
+					<Typography variant="body1">
+						{i18n.t("settings.settings.mobileAppLatestVersion.name")}
+					</Typography>
+					<TextField
+						name="mobileAppLatestVersion"
+						margin="dense"
+						variant="outlined"
+						fullWidth
+						value={textSettings.mobileAppLatestVersion}
+						onChange={handleTextSettingChange}
+						onBlur={handleBlurTextSetting}
+						helperText={i18n.t("settings.settings.mobileAppLatestVersion.help")}
+					/>
+				</Paper>
+
+				<Paper className={classes.paperColumn}>
+					<Typography variant="body1">
+						{i18n.t("settings.settings.mobileAppDownloadUrl.name")}
+					</Typography>
+					<TextField
+						name="mobileAppDownloadUrl"
+						margin="dense"
+						variant="outlined"
+						fullWidth
+						value={textSettings.mobileAppDownloadUrl}
+						onChange={handleTextSettingChange}
+						onBlur={handleBlurTextSetting}
+						helperText={i18n.t("settings.settings.mobileAppDownloadUrl.help")}
+					/>
+				</Paper>
+
+				<Paper className={classes.paperColumn}>
 					<TextField
 						id="api-token-setting"
 						InputProps={{ readOnly: true }}
@@ -203,6 +296,23 @@ const Settings = () => {
 						fullWidth
 						value={getSettingValue("userApiToken")}
 					/>
+				</Paper>
+
+				<Paper className={classes.paper}>
+					<Typography variant="body1">
+						{i18n.t("settings.settings.downloadApp.name")}
+					</Typography>
+					<Button
+						variant="contained"
+						color="primary"
+						className={classes.settingOption}
+						component="a"
+						href={mobileAppUrl}
+						download
+						disabled={!mobileAppUrl}
+					>
+						{i18n.t("settings.settings.downloadApp.button")}
+					</Button>
 				</Paper>
 
 			</Container>

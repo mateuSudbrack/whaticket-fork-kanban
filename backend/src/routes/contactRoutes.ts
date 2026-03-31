@@ -13,8 +13,33 @@ contactRoutes.post(
 );
 
 contactRoutes.get("/contacts", isAuth, ContactController.index);
+contactRoutes.get(
+  "/contact-pipeline-memberships",
+  isAuth,
+  ContactController.listByPipeline
+);
 
 contactRoutes.get("/contacts/:contactId", isAuth, ContactController.show);
+contactRoutes.get(
+  "/contacts/:contactId/pipelines",
+  isAuth,
+  ContactController.listPipelineMemberships
+);
+contactRoutes.post(
+  "/contacts/:contactId/pipelines",
+  isAuth,
+  ContactController.upsertPipelineMembership
+);
+contactRoutes.put(
+  "/contacts/:contactId/pipelines/:pipelineId",
+  isAuth,
+  ContactController.upsertPipelineMembership
+);
+contactRoutes.delete(
+  "/contacts/:contactId/pipelines/:pipelineId",
+  isAuth,
+  ContactController.removePipelineMembership
+);
 
 contactRoutes.post("/contacts", isAuth, ContactController.store);
 

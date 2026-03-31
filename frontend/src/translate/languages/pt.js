@@ -379,6 +379,26 @@ const messages = {
             name: "Fechar tickets abertos após (horas)",
             help: "Use 0 para desativar o fechamento automático.",
           },
+          appName: {
+            name: "Nome do aplicativo",
+            help: "Usado no login, cabeçalho do webapp e no app mobile.",
+          },
+          appLogoUrl: {
+            name: "URL da logo",
+            help: "Exibida no login e no cabeçalho do sistema.",
+          },
+          mobileAppLatestVersion: {
+            name: "Última versão do app mobile",
+            help: "Versão comparada pelo app ao abrir.",
+          },
+          mobileAppDownloadUrl: {
+            name: "URL de atualização do app",
+            help: "Se ficar vazia, o app usa o APK público padrão.",
+          },
+          downloadApp: {
+            name: "Aplicativo mobile",
+            button: "Baixar APK",
+          },
         },
       },
       messagesList: {

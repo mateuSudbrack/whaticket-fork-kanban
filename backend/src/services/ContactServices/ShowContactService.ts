@@ -1,5 +1,7 @@
 import Contact from "../../models/Contact";
 import AppError from "../../errors/AppError";
+import KanbanPipeline from "../../models/KanbanPipeline";
+import KanbanStage from "../../models/KanbanStage";
 
 const ShowContactService = async (id: string | number): Promise<Contact> => {
   const contact = await Contact.findByPk(id, {
@@ -10,6 +12,21 @@ const ShowContactService = async (id: string | number): Promise<Contact> => {
       },
       {
         association: "tags"
+      },
+      {
+        association: "pipelineMemberships",
+        include: [
+          {
+            model: KanbanPipeline,
+            as: "pipeline",
+            attributes: ["id", "name", "color", "sortOrder", "active"]
+          },
+          {
+            model: KanbanStage,
+            as: "kanbanStage",
+            attributes: ["id", "name", "color", "sortOrder", "active", "pipelineId"]
+          }
+        ]
       }
     ]
   });

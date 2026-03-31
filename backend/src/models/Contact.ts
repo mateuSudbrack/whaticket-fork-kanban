@@ -16,6 +16,7 @@ import ContactCustomField from "./ContactCustomField";
 import Ticket from "./Ticket";
 import Tag from "./Tag";
 import ContactTag from "./ContactTag";
+import ContactPipelineMembership from "./ContactPipelineMembership";
 
 @Table
 class Contact extends Model<Contact> {
@@ -61,6 +62,9 @@ class Contact extends Model<Contact> {
 
   @BelongsToMany(() => Tag, () => ContactTag)
   tags: Tag[];
+
+  @HasMany(() => ContactPipelineMembership)
+  pipelineMemberships: ContactPipelineMembership[];
 }
 
 export default Contact;

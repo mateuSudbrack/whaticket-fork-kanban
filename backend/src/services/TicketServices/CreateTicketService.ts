@@ -6,6 +6,7 @@ import User from "../../models/User";
 import ShowContactService from "../ContactServices/ShowContactService";
 import KanbanStage from "../../models/KanbanStage";
 import KanbanPipeline from "../../models/KanbanPipeline";
+import SyncUnifiedTagsService from "../SyncUnifiedTagsService";
 
 interface Request {
   contactId: number;
@@ -28,7 +29,7 @@ const CreateTicketService = async ({
 
   await CheckContactOpenTickets(contactId, defaultWhatsapp.id);
 
-  const { isGroup } = await ShowContactService(contactId);
+  const { isGroup, tags } = await ShowContactService(contactId);
 
   if (queueId === undefined) {
     const user = await User.findByPk(userId, { include: ["queues"] });
@@ -67,6 +68,8 @@ const CreateTicketService = async ({
   if (!ticket) {
     throw new AppError("ERR_CREATING_TICKET");
   }
+
+  await SyncUnifiedTagsService(contactId, (tags || []).map(tag => tag.id));
 
   return ticket;
 };

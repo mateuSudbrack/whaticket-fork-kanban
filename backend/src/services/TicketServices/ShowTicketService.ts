@@ -7,6 +7,7 @@ import Whatsapp from "../../models/Whatsapp";
 import KanbanStage from "../../models/KanbanStage";
 import KanbanPipeline from "../../models/KanbanPipeline";
 import Tag from "../../models/Tag";
+import ContactPipelineMembership from "../../models/ContactPipelineMembership";
 
 const ShowTicketService = async (id: string | number): Promise<Ticket> => {
   const ticket = await Ticket.findByPk(id, {
@@ -22,6 +23,22 @@ const ShowTicketService = async (id: string | number): Promise<Ticket> => {
             as: "tags",
             attributes: ["id", "name", "color"],
             through: { attributes: [] }
+          },
+          {
+            model: ContactPipelineMembership,
+            as: "pipelineMemberships",
+            include: [
+              {
+                model: KanbanPipeline,
+                as: "pipeline",
+                attributes: ["id", "name", "color", "sortOrder"]
+              },
+              {
+                model: KanbanStage,
+                as: "kanbanStage",
+                attributes: ["id", "name", "color", "sortOrder", "pipelineId"]
+              }
+            ]
           }
         ]
       },

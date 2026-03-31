@@ -12,6 +12,7 @@ import {
   IconButton,
   Menu,
   Switch,
+  Avatar,
 } from "@material-ui/core";
 import MenuIcon from "@material-ui/icons/Menu";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
@@ -25,6 +26,7 @@ import { AuthContext } from "../context/Auth/AuthContext";
 import BackdropLoading from "../components/BackdropLoading";
 import { i18n } from "../translate/i18n";
 import { useThemeContext } from "../context/DarkMode";
+import usePublicSettings from "../hooks/usePublicSettings";
 
 const drawerWidth = 240;
 
@@ -72,6 +74,17 @@ const useStyles = makeStyles((theme) => ({
   title: {
     flexGrow: 1,
     color: theme.palette.text.primary,
+  },
+  brand: {
+    flexGrow: 1,
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(1.5),
+    minWidth: 0,
+  },
+  brandAvatar: {
+    width: theme.spacing(4),
+    height: theme.spacing(4),
   },
   drawerPaper: {
     position: "relative",
@@ -136,6 +149,7 @@ const LoggedInLayout = ({ children }) => {
   const [drawerVariant, setDrawerVariant] = useState("permanent");
   const { user } = useContext(AuthContext);
   const { darkMode, toggleTheme } = useThemeContext();
+  const { appName, appLogoUrl } = usePublicSettings();
 
   useEffect(() => {
     if (document.body.offsetWidth > 600) {
@@ -150,6 +164,10 @@ const LoggedInLayout = ({ children }) => {
       setDrawerVariant("permanent");
     }
   }, [drawerOpen]);
+
+  useEffect(() => {
+    document.title = appName || "Whaticket";
+  }, [appName]);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -226,14 +244,23 @@ const LoggedInLayout = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography
-            component="h1"
-            variant="h6"
-            noWrap
-            className={classes.title}
-          >
-            WhaTicket
-          </Typography>
+          <div className={classes.brand}>
+            {appLogoUrl ? (
+              <Avatar
+                src={appLogoUrl}
+                alt={appName || "Whaticket"}
+                className={classes.brandAvatar}
+              />
+            ) : null}
+            <Typography
+              component="h1"
+              variant="h6"
+              noWrap
+              className={classes.title}
+            >
+              {appName || "Whaticket"}
+            </Typography>
+          </div>
 
           <div className={classes.themeSwitchContainer}>
             <Brightness4Icon className={classes.themeIcon} />

@@ -5,7 +5,7 @@ import * as SettingController from "../controllers/SettingController";
 
 const settingRoutes = Router();
 
-settingRoutes.get("/settings/public", isAuth, SettingController.publicIndex);
+settingRoutes.get("/settings/public", SettingController.publicIndex);
 
 settingRoutes.get("/settings", isAuth, SettingController.index);
 

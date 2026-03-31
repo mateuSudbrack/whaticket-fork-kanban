@@ -1540,21 +1540,78 @@ function TicketCard({ ticket, onPress }) {
   );
 }
 
+function ContactPipelineCard({ membership, onPress }) {
+  const contact = membership?.contact || null;
+
+  return (
+    <Pressable onPress={onPress} style={styles.ticketCard}>
+      <View style={styles.ticketTop}>
+        <View style={styles.ticketIdentity}>
+          <ContactAvatar contact={contact} size={42} />
+          <View style={styles.flexOne}>
+            <Text style={styles.ticketName} numberOfLines={1}>
+              {contact?.name || contact?.number || `Contato #${membership?.contactId || ""}`}
+            </Text>
+            <Text style={styles.ticketMeta}>
+              {contact?.number || "Sem numero"}
+            </Text>
+          </View>
+        </View>
+        <Badge
+          label={membership?.kanbanStage?.name || "Sem etapa"}
+          color={membership?.kanbanStage?.color || membership?.pipeline?.color || "#3f51b5"}
+          filled
+        />
+      </View>
+
+      <Text style={styles.ticketMeta}>
+        {membership?.pipeline?.name || "Pipeline"} • contato #{membership?.contactId || "-"}
+      </Text>
+
+      <View style={styles.ticketBottom}>
+        <Text style={styles.timeText}>{formatDateTime(membership?.updatedAt)}</Text>
+      </View>
+
+      <View style={styles.badgesWrap}>
+        {((contact?.tags || [])).map(tag => (
+          <Badge
+            key={tag.id}
+            label={tag.name}
+            color={tag.color || "#64748b"}
+          />
+        ))}
+      </View>
+    </Pressable>
+  );
+}
+
 function TicketsHomeScreen({
   view,
   search,
   tickets,
   loading,
   error,
+  pipelines,
+  selectedKanbanPipelineId,
   kanbanTickets,
+  kanbanMemberships,
   kanbanLoading,
   kanbanError,
   onChangeView,
   onChangeSearch,
+  onChangeKanbanPipeline,
   onRefreshTickets,
   onRefreshKanban,
   onOpenTicket,
+  onOpenContact,
 }) {
+  const selectedKanbanPipeline =
+    pipelines.find(item => String(item.id) === String(selectedKanbanPipelineId)) ||
+    getPrincipalPipeline(pipelines);
+  const kanbanColumns = isPrincipalPipeline(selectedKanbanPipeline)
+    ? principalKanbanColumns
+    : selectedKanbanPipeline?.stages || [];
+
   return (
     <View style={styles.flexOne}>
       <ScrollView
@@ -1621,13 +1678,43 @@ function TicketsHomeScreen({
       ) : (
         <ScrollView contentContainerStyle={styles.screenContent}>
           <View style={styles.card}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.topTabsCompact}
+            >
+              {pipelines.map(pipeline => (
+                <Pressable
+                  key={pipeline.id}
+                  onPress={() => onChangeKanbanPipeline(pipeline.id)}
+                  style={[
+                    styles.topTab,
+                    String(selectedKanbanPipeline?.id || "") === String(pipeline.id) &&
+                      styles.topTabActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.topTabText,
+                      String(selectedKanbanPipeline?.id || "") === String(pipeline.id) &&
+                        styles.topTabTextActive,
+                    ]}
+                  >
+                    {pipeline.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
             <View style={styles.toolbar}>
-              <Text style={styles.toolbarText}>Kanban principal</Text>
+              <Text style={styles.toolbarText}>
+                {selectedKanbanPipeline?.name || "Kanban"}
+              </Text>
               <ActionButton label="Atualizar" onPress={onRefreshKanban} />
             </View>
             <Text style={styles.helperText}>
-              Kanban da situacao do ticket: aguardando, em atendimento e resolvido.
-              Os demais kanbans continuam disponiveis no detalhe do ticket.
+              {isPrincipalPipeline(selectedKanbanPipeline)
+                ? "Kanban da situacao do ticket: aguardando, em atendimento e resolvido."
+                : "Este kanban paralelo organiza contatos por etapa, sem mexer no ticket principal."}
             </Text>
             {kanbanError ? <Text style={styles.errorText}>{kanbanError}</Text> : null}
           </View>
@@ -1639,10 +1726,15 @@ function TicketsHomeScreen({
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.kanbanRow}>
-                {principalKanbanColumns.map(stage => {
-                  const stageTickets = kanbanTickets.filter(
-                    ticket => String(ticket.status) === String(stage.id),
-                  );
+                {kanbanColumns.map(stage => {
+                  const stageItems = isPrincipalPipeline(selectedKanbanPipeline)
+                    ? kanbanTickets.filter(
+                        ticket => String(ticket.status) === String(stage.id),
+                      )
+                    : kanbanMemberships.filter(
+                        membership =>
+                          String(membership.kanbanStageId) === String(stage.id),
+                      );
 
                   return (
                     <View key={stage.id} style={styles.kanbanColumn}>
@@ -1652,23 +1744,37 @@ function TicketsHomeScreen({
                           { backgroundColor: stage.color },
                         ]}
                       >
-                        <Text style={styles.kanbanHeaderText}>{stage.title}</Text>
+                        <Text style={styles.kanbanHeaderText}>
+                          {stage.title || stage.name}
+                        </Text>
                         <Text style={styles.kanbanHeaderCount}>
-                          {stageTickets.length}
+                          {stageItems.length}
                         </Text>
                       </View>
 
-                      {stageTickets.length ? (
-                        stageTickets.map(ticket => (
-                          <TicketCard
-                            key={ticket.id}
-                            ticket={ticket}
-                            onPress={() => onOpenTicket(ticket)}
-                          />
-                        ))
+                      {stageItems.length ? (
+                        stageItems.map(item =>
+                          isPrincipalPipeline(selectedKanbanPipeline) ? (
+                            <TicketCard
+                              key={item.id}
+                              ticket={item}
+                              onPress={() => onOpenTicket(item)}
+                            />
+                          ) : (
+                            <ContactPipelineCard
+                              key={`${item.contactId}-${item.pipelineId}`}
+                              membership={item}
+                              onPress={() => onOpenContact(item.contact)}
+                            />
+                          ),
+                        )
                       ) : (
                         <View style={styles.card}>
-                          <Text style={styles.emptyText}>Sem tickets.</Text>
+                          <Text style={styles.emptyText}>
+                            {isPrincipalPipeline(selectedKanbanPipeline)
+                              ? "Sem tickets."
+                              : "Sem contatos."}
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -2847,6 +2953,10 @@ function TicketDetailScreen({
 function ContactDetailScreen({
   contact,
   error,
+  extraPipelines,
+  selectedExtraPipelineId,
+  selectedExtraStageId,
+  contactPipelineSaving,
   certificateOrders,
   certificateOrdersLoading,
   certificateOrdersError,
@@ -2856,7 +2966,24 @@ function ContactDetailScreen({
   onOpenTags,
   onStartConversation,
   onLoadCertificateOrders,
+  onSelectExtraPipeline,
+  onSelectExtraStage,
+  onAddExtraPipeline,
+  onMoveExtraPipelineStage,
+  onRemoveExtraPipeline,
 }) {
+  const memberships = contact?.pipelineMemberships || [];
+  const addablePipelines = extraPipelines.filter(
+    pipeline =>
+      !memberships.some(
+        membership => String(membership.pipelineId) === String(pipeline.id),
+      ),
+  );
+  const selectedExtraPipeline =
+    extraPipelines.find(
+      pipeline => String(pipeline.id) === String(selectedExtraPipelineId),
+    ) || null;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
@@ -2889,6 +3016,175 @@ function ContactDetailScreen({
             <ActionButton label="Etiquetas" onPress={onOpenTags} />
           </View>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Pipelines do contato</Text>
+          <Text style={styles.helperText}>
+            Esses pipelines paralelos categorizam o contato sem mexer no ticket principal.
+          </Text>
+
+          {memberships.length ? (
+            memberships.map(membership => {
+              const membershipPipeline =
+                extraPipelines.find(
+                  pipeline => String(pipeline.id) === String(membership.pipelineId),
+                ) || membership.pipeline;
+              const stageOptions = (membershipPipeline?.stages || []).filter(
+                stage => stage.active !== false,
+              );
+
+              return (
+                <View
+                  key={membership.id || `${membership.contactId}-${membership.pipelineId}`}
+                  style={styles.contactPipelineCard}
+                >
+                  <View style={styles.contactPipelineHeader}>
+                    <Text style={styles.contactPipelineTitle}>
+                      {membershipPipeline?.name || "Pipeline"}
+                    </Text>
+                    <Pressable
+                      onPress={() => onRemoveExtraPipeline(membership)}
+                      disabled={contactPipelineSaving}
+                      style={[
+                        styles.contactPipelineRemoveButton,
+                        contactPipelineSaving && styles.buttonDisabled,
+                      ]}
+                    >
+                      <Text style={styles.contactPipelineRemoveButtonText}>Remover</Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.badgesWrap}>
+                    {stageOptions.map(stage => {
+                      const active =
+                        String(stage.id) === String(membership.kanbanStageId);
+
+                      return (
+                        <Pressable
+                          key={stage.id}
+                          onPress={() =>
+                            onMoveExtraPipelineStage(membership, stage.id)
+                          }
+                          disabled={contactPipelineSaving || active}
+                          style={[
+                            styles.contactPipelineStageButton,
+                            active && {
+                              backgroundColor:
+                                stage.color || membershipPipeline?.color || "#3f51b5",
+                              borderColor:
+                                stage.color || membershipPipeline?.color || "#3f51b5",
+                            },
+                            contactPipelineSaving && styles.buttonDisabled,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.contactPipelineStageButtonText,
+                              active && styles.contactPipelineStageButtonTextActive,
+                            ]}
+                          >
+                            {stage.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <Text style={styles.emptyText}>
+              Este contato ainda não está em pipelines paralelos.
+            </Text>
+          )}
+
+          {!!addablePipelines.length ? (
+            <View style={styles.contactPipelineComposer}>
+              <Text style={styles.helperText}>Adicionar a outro pipeline</Text>
+              <View style={styles.badgesWrap}>
+                {addablePipelines.map(pipeline => {
+                  const active =
+                    String(pipeline.id) === String(selectedExtraPipelineId);
+
+                  return (
+                    <Pressable
+                      key={pipeline.id}
+                      onPress={() => onSelectExtraPipeline(pipeline.id)}
+                      style={[
+                        styles.contactPipelineStageButton,
+                        active && {
+                          backgroundColor: pipeline.color || "#3f51b5",
+                          borderColor: pipeline.color || "#3f51b5",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.contactPipelineStageButtonText,
+                          active && styles.contactPipelineStageButtonTextActive,
+                        ]}
+                      >
+                        {pipeline.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {selectedExtraPipeline ? (
+                <>
+                  <Text style={styles.helperText}>Escolha a etapa inicial</Text>
+                  <View style={styles.badgesWrap}>
+                    {(selectedExtraPipeline.stages || [])
+                      .filter(stage => stage.active !== false)
+                      .map(stage => {
+                        const active =
+                          String(stage.id) === String(selectedExtraStageId);
+
+                        return (
+                          <Pressable
+                            key={stage.id}
+                            onPress={() => onSelectExtraStage(stage.id)}
+                            style={[
+                              styles.contactPipelineStageButton,
+                              active && {
+                                backgroundColor:
+                                  stage.color ||
+                                  selectedExtraPipeline.color ||
+                                  "#3f51b5",
+                                borderColor:
+                                  stage.color ||
+                                  selectedExtraPipeline.color ||
+                                  "#3f51b5",
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.contactPipelineStageButtonText,
+                                active &&
+                                  styles.contactPipelineStageButtonTextActive,
+                              ]}
+                            >
+                              {stage.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                  </View>
+                </>
+              ) : null}
+
+              <View style={styles.actionsRow}>
+                <ActionButton
+                  label={contactPipelineSaving ? "Salvando..." : "Adicionar pipeline"}
+                  primary
+                  onPress={onAddExtraPipeline}
+                />
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -3177,6 +3473,9 @@ export default function App() {
 
   const [selectedContact, setSelectedContact] = useState(null);
   const [contactDetailError, setContactDetailError] = useState("");
+  const [selectedContactPipelineId, setSelectedContactPipelineId] = useState("");
+  const [selectedContactStageId, setSelectedContactStageId] = useState("");
+  const [contactPipelineSaving, setContactPipelineSaving] = useState(false);
   const [contactCertificateOrders, setContactCertificateOrders] = useState([]);
   const [contactCertificateOrdersLoading, setContactCertificateOrdersLoading] =
     useState(false);
@@ -3234,8 +3533,10 @@ export default function App() {
   const [userOptions, setUserOptions] = useState([]);
 
   const [kanbanTickets, setKanbanTickets] = useState([]);
+  const [kanbanContactMemberships, setKanbanContactMemberships] = useState([]);
   const [kanbanLoading, setKanbanLoading] = useState(false);
   const [kanbanError, setKanbanError] = useState("");
+  const [selectedKanbanPipelineId, setSelectedKanbanPipelineId] = useState("");
 
   const [transferVisible, setTransferVisible] = useState(false);
   const [transferSaving, setTransferSaving] = useState(false);
@@ -3260,6 +3561,10 @@ export default function App() {
     () => getPrincipalPipeline(pipelines),
     [pipelines],
   );
+  const extraContactPipelines = useMemo(
+    () => pipelines.filter(pipeline => !isPrincipalPipeline(pipeline)),
+    [pipelines],
+  );
   const appName =
     String(publicSettings.appName || "").trim() || APP_NAME_FALLBACK;
   const appLogoUrl = String(publicSettings.appLogoUrl || "").trim();
@@ -3269,8 +3574,8 @@ export default function App() {
     String(publicSettings.mobileAppDownloadUrl || "").trim() ||
     getDefaultMobileDownloadUrl(normalizedApiUrl || defaultApiUrl);
   const updateAvailable = compareVersions(APP_VERSION, latestMobileVersion) < 0;
-  const currentMovePipeline =
-    pipelines.find(p => String(p.id) === String(kanbanMovePipelineId)) ||
+  const currentKanbanPipeline =
+    pipelines.find(p => String(p.id) === String(selectedKanbanPipelineId)) ||
     principalPipeline;
   const certificateDocumentDigits = normalizeDocumentDigits(
     certificateCreateForm.document,
@@ -3522,9 +3827,15 @@ export default function App() {
 
     await Promise.all([
       loadReferenceData(),
-      section === "contacts" ? loadContacts() : loadTickets(),
-      ticketView === "kanban" ? loadKanbanTickets() : Promise.resolve(),
-      selectedTicket?.id ? loadMessages(selectedTicket.id) : Promise.resolve(),
+      section === "contacts"
+        ? loadContacts(undefined, { silent: true })
+        : loadTickets(undefined, undefined, { silent: true }),
+      ticketView === "kanban"
+        ? loadKanbanTickets({ silent: true })
+        : Promise.resolve(),
+      selectedTicket?.id
+        ? loadMessages(selectedTicket.id, { silent: true })
+        : Promise.resolve(),
     ]);
   }
 
@@ -3554,6 +3865,15 @@ export default function App() {
     setPipelines(Array.isArray(pipelinesData) ? pipelinesData : []);
     setQueues(Array.isArray(queuesData) ? queuesData : []);
     setUserOptions(usersData?.users || []);
+
+    if (!selectedKanbanPipelineId) {
+      const nextPrincipal = getPrincipalPipeline(
+        Array.isArray(pipelinesData) ? pipelinesData : [],
+      );
+      if (nextPrincipal?.id) {
+        setSelectedKanbanPipelineId(String(nextPrincipal.id));
+      }
+    }
   }
 
   async function loadCertificateOrders(targetPage = certificateOrdersPage) {
@@ -4039,10 +4359,17 @@ export default function App() {
     } catch (_error) {}
   }
 
-  async function loadTickets(view = ticketView, search = ticketSearch) {
+  async function loadTickets(
+    view = ticketView,
+    search = ticketSearch,
+    options = {},
+  ) {
     if (!token) return;
+    const { silent = false } = options;
 
-    setTicketsLoading(true);
+    if (!silent) {
+      setTicketsLoading(true);
+    }
     setTicketsError("");
 
     try {
@@ -4073,35 +4400,57 @@ export default function App() {
     } catch (error) {
       setTicketsError(error.message);
     } finally {
-      setTicketsLoading(false);
+      if (!silent) {
+        setTicketsLoading(false);
+      }
     }
   }
 
-  async function loadKanbanTickets() {
+  async function loadKanbanTickets(options = {}) {
     if (!token) return;
+    const { silent = false } = options;
 
-    setKanbanLoading(true);
+    if (!silent) {
+      setKanbanLoading(true);
+    }
     setKanbanError("");
 
     try {
-      const params = new URLSearchParams({
-        pageNumber: "1",
-        showAll: "true",
-      });
+      if (isPrincipalPipeline(currentKanbanPipeline)) {
+        const params = new URLSearchParams({
+          pageNumber: "1",
+          showAll: "true",
+        });
 
-      const payload = await requestApi(`/tickets?${params.toString()}`);
-      setKanbanTickets(payload.tickets || []);
+        const payload = await requestApi(`/tickets?${params.toString()}`);
+        setKanbanTickets(payload.tickets || []);
+        setKanbanContactMemberships([]);
+      } else {
+        const params = new URLSearchParams({
+          pipelineId: String(currentKanbanPipeline?.id || ""),
+        });
+        const payload = await requestApi(
+          `/contact-pipeline-memberships?${params.toString()}`,
+        );
+        setKanbanContactMemberships(payload.memberships || []);
+        setKanbanTickets([]);
+      }
     } catch (error) {
       setKanbanError(error.message);
     } finally {
-      setKanbanLoading(false);
+      if (!silent) {
+        setKanbanLoading(false);
+      }
     }
   }
 
-  async function loadContacts(search = contactSearch) {
+  async function loadContacts(search = contactSearch, options = {}) {
     if (!token) return;
+    const { silent = false } = options;
 
-    setContactsLoading(true);
+    if (!silent) {
+      setContactsLoading(true);
+    }
     setContactsError("");
 
     try {
@@ -4125,7 +4474,9 @@ export default function App() {
     } catch (error) {
       setContactsError(error.message);
     } finally {
-      setContactsLoading(false);
+      if (!silent) {
+        setContactsLoading(false);
+      }
     }
   }
 
@@ -4141,10 +4492,13 @@ export default function App() {
     }
   }
 
-  async function loadMessages(ticketId) {
+  async function loadMessages(ticketId, options = {}) {
     if (!token || !ticketId) return;
+    const { silent = false } = options;
 
-    setMessagesLoading(true);
+    if (!silent) {
+      setMessagesLoading(true);
+    }
     setMessagesError("");
 
     try {
@@ -4153,7 +4507,9 @@ export default function App() {
     } catch (error) {
       setMessagesError(error.message);
     } finally {
-      setMessagesLoading(false);
+      if (!silent) {
+        setMessagesLoading(false);
+      }
     }
   }
 
@@ -4427,6 +4783,70 @@ export default function App() {
     }
   }
 
+  async function addContactToExtraPipeline() {
+    if (!selectedContact?.id || !selectedContactPipelineId) return;
+
+    setContactPipelineSaving(true);
+    setContactDetailError("");
+
+    try {
+      await requestApi(`/contacts/${selectedContact.id}/pipelines`, {
+        method: "POST",
+        body: JSON.stringify({
+          pipelineId: Number(selectedContactPipelineId),
+          kanbanStageId: selectedContactStageId ? Number(selectedContactStageId) : null,
+        }),
+      });
+      setSelectedContactPipelineId("");
+      setSelectedContactStageId("");
+      await loadContact(selectedContact.id);
+    } catch (error) {
+      setContactDetailError(error.message);
+    } finally {
+      setContactPipelineSaving(false);
+    }
+  }
+
+  async function moveContactExtraPipelineStage(membership, kanbanStageId) {
+    if (!selectedContact?.id || !membership?.pipelineId || !kanbanStageId) return;
+
+    setContactPipelineSaving(true);
+    setContactDetailError("");
+
+    try {
+      await requestApi(`/contacts/${selectedContact.id}/pipelines/${membership.pipelineId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          pipelineId: Number(membership.pipelineId),
+          kanbanStageId: Number(kanbanStageId),
+        }),
+      });
+      await loadContact(selectedContact.id);
+    } catch (error) {
+      setContactDetailError(error.message);
+    } finally {
+      setContactPipelineSaving(false);
+    }
+  }
+
+  async function removeContactFromExtraPipeline(membership) {
+    if (!selectedContact?.id || !membership?.pipelineId) return;
+
+    setContactPipelineSaving(true);
+    setContactDetailError("");
+
+    try {
+      await requestApi(`/contacts/${selectedContact.id}/pipelines/${membership.pipelineId}`, {
+        method: "DELETE",
+      });
+      await loadContact(selectedContact.id);
+    } catch (error) {
+      setContactDetailError(error.message);
+    } finally {
+      setContactPipelineSaving(false);
+    }
+  }
+
   async function saveTransfer() {
     if (!selectedTicket?.id) return;
 
@@ -4678,7 +5098,7 @@ export default function App() {
     } else {
       loadTickets(ticketView, ticketSearch);
     }
-  }, [token, ticketView, ticketSearch, isAdmin]);
+  }, [token, ticketView, ticketSearch, isAdmin, selectedKanbanPipelineId, pipelines]);
 
   useEffect(() => {
     if (!token) return;
@@ -4713,6 +5133,8 @@ export default function App() {
     setContactCertificateOrders([]);
     setContactCertificateOrdersError("");
     setContactCertificateOrdersFetched(false);
+    setSelectedContactPipelineId("");
+    setSelectedContactStageId("");
   }, [selectedContact?.id]);
 
   useEffect(() => {
@@ -4912,60 +5334,23 @@ export default function App() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Mover no kanban</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.topTabsCompact}
-              >
-                {pipelines.map(pipeline => (
+              <Text style={styles.modalTitle}>Mover status do ticket</Text>
+              <Text style={styles.helperText}>
+                O ticket continua no fluxo principal. Pipelines paralelos são do contato.
+              </Text>
+              <ScrollView style={styles.modalList}>
+                {principalMoveOptions.map(stage => (
                   <Pressable
-                    key={pipeline.id}
-                    onPress={() => setKanbanMovePipelineId(pipeline.id)}
-                    style={[
-                      styles.topTab,
-                      String(kanbanMovePipelineId || principalPipeline?.id) ===
-                        String(pipeline.id) && styles.topTabActive,
-                    ]}
+                    key={stage.id}
+                    onPress={() => moveToStage(stage)}
+                    style={styles.modalOption}
                   >
-                    <Text
-                      style={[
-                        styles.topTabText,
-                        String(kanbanMovePipelineId || principalPipeline?.id) ===
-                          String(pipeline.id) && styles.topTabTextActive,
-                      ]}
-                    >
-                      {pipeline.name}
+                    <Text style={styles.modalOptionTitle}>{stage.label}</Text>
+                    <Text style={styles.modalOptionText}>
+                      {stage.description}
                     </Text>
                   </Pressable>
                 ))}
-              </ScrollView>
-              <ScrollView style={styles.modalList}>
-                {isPrincipalPipeline(currentMovePipeline)
-                  ? principalMoveOptions.map(stage => (
-                      <Pressable
-                        key={stage.id}
-                        onPress={() => moveToStage(stage)}
-                        style={styles.modalOption}
-                      >
-                        <Text style={styles.modalOptionTitle}>{stage.label}</Text>
-                        <Text style={styles.modalOptionText}>
-                          {stage.description}
-                        </Text>
-                      </Pressable>
-                    ))
-                  : (currentMovePipeline?.stages || []).map(stage => (
-                      <Pressable
-                        key={stage.id}
-                        onPress={() => moveToStage(stage)}
-                        style={styles.modalOption}
-                      >
-                        <Text style={styles.modalOptionTitle}>{stage.name}</Text>
-                        <Text style={styles.modalOptionText}>
-                          {currentMovePipeline?.name || "Kanban"}
-                        </Text>
-                      </Pressable>
-                    ))}
               </ScrollView>
               <ActionButton label="Fechar" onPress={() => setKanbanMoveVisible(false)} />
             </View>
@@ -4992,6 +5377,10 @@ export default function App() {
         <ContactDetailScreen
           contact={selectedContact}
           error={contactDetailError}
+          extraPipelines={extraContactPipelines}
+          selectedExtraPipelineId={selectedContactPipelineId}
+          selectedExtraStageId={selectedContactStageId}
+          contactPipelineSaving={contactPipelineSaving}
           certificateOrders={contactCertificateOrders}
           certificateOrdersLoading={contactCertificateOrdersLoading}
           certificateOrdersError={contactCertificateOrdersError}
@@ -5007,6 +5396,14 @@ export default function App() {
           onLoadCertificateOrders={() =>
             loadCertificateOrdersForContact(selectedContact.id)
           }
+          onSelectExtraPipeline={pipelineId => {
+            setSelectedContactPipelineId(String(pipelineId));
+            setSelectedContactStageId("");
+          }}
+          onSelectExtraStage={stageId => setSelectedContactStageId(String(stageId))}
+          onAddExtraPipeline={addContactToExtraPipeline}
+          onMoveExtraPipelineStage={moveContactExtraPipelineStage}
+          onRemoveExtraPipeline={removeContactFromExtraPipeline}
         />
 
         <TagModal
@@ -5048,14 +5445,26 @@ export default function App() {
           tickets={tickets}
           loading={ticketsLoading}
           error={ticketsError}
+          pipelines={pipelines}
+          selectedKanbanPipelineId={selectedKanbanPipelineId}
           kanbanTickets={kanbanTickets}
+          kanbanMemberships={kanbanContactMemberships}
           kanbanLoading={kanbanLoading}
           kanbanError={kanbanError}
           onChangeView={setTicketView}
           onChangeSearch={setTicketSearch}
+          onChangeKanbanPipeline={pipelineId =>
+            setSelectedKanbanPipelineId(String(pipelineId))
+          }
           onRefreshTickets={() => loadTickets()}
           onRefreshKanban={loadKanbanTickets}
           onOpenTicket={openTicket}
+          onOpenContact={async contact => {
+            if (!contact?.id) return;
+            setSelectedContact(contact);
+            setSection("contacts");
+            await loadContact(contact.id);
+          }}
         />
       ) : section === "contacts" ? (
         <ContactsScreen
@@ -5542,6 +5951,59 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  contactPipelineCard: {
+    borderWidth: 1,
+    borderColor: "#dbe3ef",
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+    backgroundColor: "#f8fafc",
+  },
+  contactPipelineHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+  },
+  contactPipelineTitle: {
+    flex: 1,
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  contactPipelineRemoveButton: {
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    backgroundColor: "#fff1f2",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  contactPipelineRemoveButtonText: {
+    color: "#b91c1c",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  contactPipelineStageButton: {
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    backgroundColor: "#ffffff",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  contactPipelineStageButtonText: {
+    color: "#334155",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  contactPipelineStageButtonTextActive: {
+    color: "#ffffff",
+  },
+  contactPipelineComposer: {
+    gap: 10,
+    marginTop: 4,
   },
   actionButton: {
     borderWidth: 1,

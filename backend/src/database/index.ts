@@ -19,6 +19,7 @@ import ContactTag from "../models/ContactTag";
 import TicketTag from "../models/TicketTag";
 import Flow from "../models/Flow";
 import FlowExecution from "../models/FlowExecution";
+import ContactPipelineMembership from "../models/ContactPipelineMembership";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
@@ -43,6 +44,7 @@ const models = [
   TicketTag,
   Flow,
   FlowExecution,
+  ContactPipelineMembership,
   WhatsappQueue,
   UserQueue,
   QuickAnswer,

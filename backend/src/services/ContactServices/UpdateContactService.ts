@@ -5,6 +5,7 @@ import ContactCustomField from "../../models/ContactCustomField";
 import Ticket from "../../models/Ticket";
 import GetContactNumberVariants from "../../helpers/GetContactNumberVariants";
 import { findFlowsForContext, startFlowExecution } from "../FlowServices/FlowEngine";
+import SyncUnifiedTagsService from "../SyncUnifiedTagsService";
 
 interface ExtraInfo {
   id?: number;
@@ -96,7 +97,7 @@ const UpdateContactService = async ({
   });
 
   if (nextTagIds) {
-    await contact.$set("tags", nextTagIds);
+    await SyncUnifiedTagsService(contact.id, nextTagIds);
   }
 
   await contact.reload({

@@ -12,6 +12,7 @@ import {
 } from "sequelize-typescript";
 import KanbanStage from "./KanbanStage";
 import Ticket from "./Ticket";
+import ContactPipelineMembership from "./ContactPipelineMembership";
 
 @Table
 class KanbanPipeline extends Model<KanbanPipeline> {
@@ -44,6 +45,9 @@ class KanbanPipeline extends Model<KanbanPipeline> {
 
   @HasMany(() => Ticket)
   tickets: Ticket[];
+
+  @HasMany(() => ContactPipelineMembership)
+  contactMemberships: ContactPipelineMembership[];
 
   @CreatedAt
   createdAt: Date;

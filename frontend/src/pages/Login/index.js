@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Link as RouterLink } from "react-router-dom";
 
 import {
@@ -22,6 +22,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import { i18n } from "../../translate/i18n";
 
 import { AuthContext } from "../../context/Auth/AuthContext";
+import usePublicSettings from "../../hooks/usePublicSettings";
 
 // const Copyright = () => {
 // 	return (
@@ -63,6 +64,11 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const { handleLogin } = useContext(AuthContext);
+  const { appName, appLogoUrl } = usePublicSettings();
+
+  useEffect(() => {
+    document.title = appName || "Whaticket";
+  }, [appName]);
 
   const handleChangeInput = (e) => {
     setUser({ ...user, [e.target.name]: e.target.value });
@@ -78,9 +84,16 @@ const Login = () => {
       <CssBaseline />
       <div className={classes.paper}>
         <Avatar className={classes.avatar}>
-          <LockOutlined />
+          {appLogoUrl ? (
+            <img src={appLogoUrl} alt={appName} width="100%" height="100%" />
+          ) : (
+            <LockOutlined />
+          )}
         </Avatar>
         <Typography component="h1" variant="h5">
+          {appName || "Whaticket"}
+        </Typography>
+        <Typography variant="body2" color="textSecondary">
           {i18n.t("login.title")}
         </Typography>
         <form className={classes.form} noValidate onSubmit={handlSubmit}>

@@ -190,6 +190,7 @@ const Kanban = () => {
   const [pipelines, setPipelines] = useState([]);
   const [selectedPipelineId, setSelectedPipelineId] = useState("");
   const [tickets, setTickets] = useState([]);
+  const [contactMemberships, setContactMemberships] = useState([]);
 
   useEffect(() => {
     if (user.profile?.toUpperCase() === "ADMIN") {
@@ -204,24 +205,41 @@ const Kanban = () => {
 
   const loadBoard = async pipelineId => {
     try {
-      const [{ data: pipelinesData }, { data: ticketsData }] = await Promise.all([
-        api.get("/kanban-pipelines"),
-        api.get("/tickets", {
-          params: {
-            showAll: showAllTickets,
-            queueIds: JSON.stringify(selectedQueueIds || []),
-            ...(pipelineId ? { pipelineId } : {})
-          }
-        })
-      ]);
+      const { data: pipelinesData } = await api.get("/kanban-pipelines");
 
       setPipelines(pipelinesData);
+
+      const effectivePipelineId =
+        pipelineId || selectedPipelineId || (pipelinesData[0] ? String(pipelinesData[0].id) : "");
 
       if (!selectedPipelineId && pipelinesData.length) {
         setSelectedPipelineId(String(pipelinesData[0].id));
       }
 
-      setTickets(ticketsData.tickets);
+      const effectivePipeline = pipelinesData.find(
+        item => String(item.id) === String(effectivePipelineId)
+      );
+
+      if (isPrincipalPipeline(effectivePipeline)) {
+        const { data: ticketsData } = await api.get("/tickets", {
+          params: {
+            showAll: showAllTickets,
+            queueIds: JSON.stringify(selectedQueueIds || []),
+            ...(effectivePipelineId ? { pipelineId: effectivePipelineId } : {})
+          }
+        });
+        setTickets(ticketsData.tickets || []);
+        setContactMemberships([]);
+        return;
+      }
+
+      const { data: membershipsData } = await api.get("/contact-pipeline-memberships", {
+        params: {
+          pipelineId: effectivePipelineId
+        }
+      });
+      setContactMemberships(membershipsData.memberships || []);
+      setTickets([]);
     } catch (err) {
       toastError(err);
     }
@@ -248,17 +266,21 @@ const Kanban = () => {
     event.preventDefault();
     const ticketId = event.dataTransfer.getData("ticketId");
     const ticketUserId = event.dataTransfer.getData("ticketUserId");
-
-    if (!ticketId) {
-      return;
-    }
+    const contactId = event.dataTransfer.getData("contactId");
 
     try {
-      await api.put(`/tickets/${ticketId}`, {
-        userId: ticketUserId ? Number(ticketUserId) : null,
-        pipelineId: stage.pipelineId,
-        kanbanStageId: stage.id
-      });
+      if (contactId) {
+        await api.put(`/contacts/${contactId}/pipelines/${stage.pipelineId}`, {
+          pipelineId: stage.pipelineId,
+          kanbanStageId: stage.id
+        });
+      } else if (ticketId) {
+        await api.put(`/tickets/${ticketId}`, {
+          userId: ticketUserId ? Number(ticketUserId) : null,
+          pipelineId: stage.pipelineId,
+          kanbanStageId: stage.id
+        });
+      }
       loadBoard(selectedPipelineId);
     } catch (err) {
       toastError(err);
@@ -288,9 +310,11 @@ const Kanban = () => {
         <div className={classes.boardScroller}>
           <div className={classes.boardRow}>
             {(selectedPipeline.stages || []).map(stage => {
-              const stageTickets = tickets.filter(
-                ticket => ticket.kanbanStageId === stage.id
-              );
+              const stageTickets = isPrincipalPipeline(selectedPipeline)
+                ? tickets.filter(ticket => ticket.kanbanStageId === stage.id)
+                : contactMemberships.filter(
+                    membership => membership.kanbanStageId === stage.id
+                  );
               const accentColor = stage.color || "#1976d2";
 
               return (
@@ -327,21 +351,33 @@ const Kanban = () => {
                   </div>
                   <div className={classes.columnBody}>
                     {stageTickets.length === 0 ? (
-                      <div className={classes.emptyState}>Nenhuma conversa nesta etapa.</div>
+                      <div className={classes.emptyState}>
+                        {isPrincipalPipeline(selectedPipeline)
+                          ? "Nenhuma conversa nesta etapa."
+                          : "Nenhum contato nesta etapa."}
+                      </div>
                     ) : (
-                      stageTickets.map(ticket => (
+                      stageTickets.map(item => (
                         <Card
-                          key={ticket.id}
+                          key={isPrincipalPipeline(selectedPipeline) ? item.id : `${item.contactId}-${item.pipelineId}`}
                           className={classes.ticketCard}
                           draggable
                           onDragStart={event => {
-                            event.dataTransfer.setData("ticketId", String(ticket.id));
-                            event.dataTransfer.setData(
-                              "ticketUserId",
-                              ticket.userId ? String(ticket.userId) : ""
-                            );
+                            if (isPrincipalPipeline(selectedPipeline)) {
+                              event.dataTransfer.setData("ticketId", String(item.id));
+                              event.dataTransfer.setData(
+                                "ticketUserId",
+                                item.userId ? String(item.userId) : ""
+                              );
+                            } else {
+                              event.dataTransfer.setData("contactId", String(item.contactId));
+                            }
                           }}
-                          onClick={() => history.push(`/tickets/${ticket.id}`)}
+                          onClick={() => {
+                            if (isPrincipalPipeline(selectedPipeline)) {
+                              history.push(`/tickets/${item.id}`);
+                            }
+                          }}
                         >
                           <CardContent className={classes.ticketContent}>
                             <div
@@ -351,13 +387,19 @@ const Kanban = () => {
                               }}
                             />
                             <Typography variant="subtitle1" className={classes.ticketTitle}>
-                              {ticket.contact?.name || `Ticket #${ticket.id}`}
+                              {isPrincipalPipeline(selectedPipeline)
+                                ? item.contact?.name || `Ticket #${item.id}`
+                                : item.contact?.name || "Contato sem nome"}
                             </Typography>
                             <Typography variant="body2" className={classes.lastMessage}>
-                              {ticket.lastMessage || "Sem ultima mensagem"}
+                              {isPrincipalPipeline(selectedPipeline)
+                                ? item.lastMessage || "Sem ultima mensagem"
+                                : item.contact?.number || "Sem numero"}
                             </Typography>
                             <div className={classes.ticketMeta}>
-                              {(ticket.tags || []).map(tag => (
+                              {((isPrincipalPipeline(selectedPipeline)
+                                ? item.tags
+                                : item.contact?.tags) || []).map(tag => (
                                 <Chip
                                   key={tag.id}
                                   size="small"
@@ -365,15 +407,18 @@ const Kanban = () => {
                                   style={{ backgroundColor: tag.color, color: "#fff" }}
                                 />
                               ))}
-                              {ticket.queue?.name && (
-                                <Chip size="small" label={ticket.queue.name} />
+                              {isPrincipalPipeline(selectedPipeline) && item.queue?.name && (
+                                <Chip size="small" label={item.queue.name} />
                               )}
-                              {ticket.whatsapp?.name && (
+                              {isPrincipalPipeline(selectedPipeline) && item.whatsapp?.name && (
                                 <Chip
                                   size="small"
-                                  label={ticket.whatsapp.name}
+                                  label={item.whatsapp.name}
                                   variant="outlined"
                                 />
+                              )}
+                              {!isPrincipalPipeline(selectedPipeline) && (
+                                <Chip size="small" label={`Contato #${item.contactId}`} />
                               )}
                             </div>
                           </CardContent>

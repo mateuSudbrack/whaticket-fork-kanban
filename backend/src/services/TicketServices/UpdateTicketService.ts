@@ -9,6 +9,7 @@ import ShowTicketService from "./ShowTicketService";
 import KanbanStage from "../../models/KanbanStage";
 import KanbanPipeline from "../../models/KanbanPipeline";
 import { findFlowsForContext, startFlowExecution } from "../FlowServices/FlowEngine";
+import SyncUnifiedTagsService from "../SyncUnifiedTagsService";
 
 interface TicketData {
   status?: string;
@@ -95,7 +96,7 @@ const UpdateTicketService = async ({
   }
 
   if (tagIds) {
-    await ticket.$set("tags", tagIds);
+    await SyncUnifiedTagsService(ticket.contactId, tagIds);
   }
 
   const updatedTicket = await ShowTicketService(ticketId);

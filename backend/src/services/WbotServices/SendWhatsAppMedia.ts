@@ -15,6 +15,25 @@ interface Request {
   body?: string;
 }
 
+const VOICE_AUDIO_EXTENSIONS = new Set([".ogg", ".opus", ".oga"]);
+
+const shouldSendAudioAsVoice = (media: Express.Multer.File): boolean => {
+  const mimetype = String(media?.mimetype || "").toLowerCase();
+  const extension = path
+    .extname(media?.originalname || media?.filename || "")
+    .toLowerCase();
+
+  if (!mimetype.startsWith("audio/")) {
+    return false;
+  }
+
+  return (
+    mimetype.includes("ogg") ||
+    mimetype.includes("opus") ||
+    VOICE_AUDIO_EXTENSIONS.has(extension)
+  );
+};
+
 const SendWhatsAppMedia = async ({
   media,
   ticket,
@@ -55,7 +74,7 @@ const SendWhatsAppMedia = async ({
 
     const mediaOptions = {
       caption: hasBody,
-      sendAudioAsVoice: true,
+      sendAudioAsVoice: shouldSendAudioAsVoice(media),
       sendMediaAsDocument:
         media.mimetype.startsWith("image/") &&
         !/^.*\.(jpe?g|png|gif)?$/i.exec(media.filename)

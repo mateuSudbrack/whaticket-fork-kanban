@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
@@ -11,6 +11,8 @@ import Avatar from "@material-ui/core/Avatar";
 import Button from "@material-ui/core/Button";
 import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
+import TextField from "@material-ui/core/TextField";
+import MenuItem from "@material-ui/core/MenuItem";
 
 import { i18n } from "../../translate/i18n";
 
@@ -18,6 +20,7 @@ import ContactModal from "../ContactModal";
 import ContactDrawerSkeleton from "../ContactDrawerSkeleton";
 import MarkdownWrapper from "../MarkdownWrapper";
 import TagEditorDialog from "../TagEditorDialog";
+import api from "../../services/api";
 
 const drawerWidth = 320;
 
@@ -88,12 +91,146 @@ const useStyles = makeStyles(theme => ({
 		marginTop: 4,
 		padding: 6,
 	},
+	sectionCard: {
+		marginTop: 8,
+		padding: 10,
+		display: "flex",
+		flexDirection: "column",
+		gap: 8,
+	},
+	membershipRow: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 8,
+		padding: 8,
+		borderRadius: 10,
+		border: "1px solid rgba(0, 0, 0, 0.12)",
+		background: "#fafafa",
+	},
+	inlineRow: {
+		display: "flex",
+		gap: 8,
+		alignItems: "center",
+		flexWrap: "wrap",
+	}
 }));
 
 const ContactDrawer = ({ open, handleDrawerClose, contact, loading, onContactUpdate }) => {
 	const classes = useStyles();
 
 	const [modalOpen, setModalOpen] = useState(false);
+	const [pipelines, setPipelines] = useState([]);
+	const [selectedPipelineId, setSelectedPipelineId] = useState("");
+	const [selectedStageId, setSelectedStageId] = useState("");
+	const [savingMembership, setSavingMembership] = useState(false);
+
+	useEffect(() => {
+		if (!open) {
+			return;
+		}
+
+		let mounted = true;
+
+		const loadPipelines = async () => {
+			try {
+				const { data } = await api.get("/kanban-pipelines");
+				if (!mounted) {
+					return;
+				}
+				setPipelines(
+					(data || []).filter(
+						pipeline =>
+							String(pipeline?.name || "").trim().toLowerCase() !== "pipeline principal"
+					)
+				);
+			} catch (_error) {}
+		};
+
+		loadPipelines();
+
+		return () => {
+			mounted = false;
+		};
+	}, [open]);
+
+	const selectedPipeline = useMemo(
+		() => pipelines.find(item => String(item.id) === String(selectedPipelineId)) || null,
+		[pipelines, selectedPipelineId]
+	);
+
+	const addablePipelines = useMemo(() => {
+		const currentIds = new Set((contact?.pipelineMemberships || []).map(item => String(item.pipelineId)));
+		return pipelines.filter(item => !currentIds.has(String(item.id)));
+	}, [pipelines, contact]);
+
+	const handleAddMembership = async () => {
+		if (!contact?.id || !selectedPipelineId) {
+			return;
+		}
+
+		setSavingMembership(true);
+		try {
+			const { data } = await api.post(`/contacts/${contact.id}/pipelines`, {
+				pipelineId: Number(selectedPipelineId),
+				kanbanStageId: selectedStageId ? Number(selectedStageId) : null,
+			});
+			if (onContactUpdate) {
+				const nextMemberships = [...(contact.pipelineMemberships || []), data].sort(
+					(a, b) => String(a.pipeline?.name || "").localeCompare(String(b.pipeline?.name || ""))
+				);
+				onContactUpdate({ ...contact, pipelineMemberships: nextMemberships });
+			}
+			setSelectedPipelineId("");
+			setSelectedStageId("");
+		} catch (_error) {}
+		setSavingMembership(false);
+	};
+
+	const handleMoveMembership = async membership => {
+		if (!contact?.id || !membership?.pipelineId || !membership?.kanbanStageId) {
+			return;
+		}
+
+		setSavingMembership(true);
+		try {
+			const { data } = await api.put(
+				`/contacts/${contact.id}/pipelines/${membership.pipelineId}`,
+				{
+					pipelineId: membership.pipelineId,
+					kanbanStageId: membership.kanbanStageId,
+				}
+			);
+			if (onContactUpdate) {
+				onContactUpdate({
+					...contact,
+					pipelineMemberships: (contact.pipelineMemberships || []).map(item =>
+						String(item.pipelineId) === String(membership.pipelineId) ? data : item
+					),
+				});
+			}
+		} catch (_error) {}
+		setSavingMembership(false);
+	};
+
+	const handleRemoveMembership = async membership => {
+		if (!contact?.id || !membership?.pipelineId) {
+			return;
+		}
+
+		setSavingMembership(true);
+		try {
+			await api.delete(`/contacts/${contact.id}/pipelines/${membership.pipelineId}`);
+			if (onContactUpdate) {
+				onContactUpdate({
+					...contact,
+					pipelineMemberships: (contact.pipelineMemberships || []).filter(
+						item => String(item.pipelineId) !== String(membership.pipelineId)
+					),
+				});
+			}
+		} catch (_error) {}
+		setSavingMembership(false);
+	};
 
 	return (
 		<Drawer
@@ -184,6 +321,109 @@ const ContactDrawer = ({ open, handleDrawerClose, contact, loading, onContactUpd
 								</Typography>
 							</Paper>
 						))}
+					</Paper>
+					<Paper square variant="outlined" className={classes.sectionCard}>
+						<Typography variant="subtitle1">Pipelines do contato</Typography>
+						{(contact?.pipelineMemberships || []).map(membership => (
+							<div key={membership.id || `${membership.contactId}-${membership.pipelineId}`} className={classes.membershipRow}>
+								<Typography variant="body2">
+									<strong>{membership.pipeline?.name || "Pipeline"}</strong>
+								</Typography>
+								<TextField
+									select
+									label="Etapa"
+									variant="outlined"
+									size="small"
+									value={membership.kanbanStageId || ""}
+									onChange={event => {
+										const nextStageId = Number(event.target.value);
+										const nextMembership = {
+											...membership,
+											kanbanStageId: nextStageId,
+										};
+										handleMoveMembership(nextMembership);
+									}}
+								>
+									{(membership.pipeline?.stages || pipelines.find(item => String(item.id) === String(membership.pipelineId))?.stages || [])
+										.filter(stage => stage.active !== false)
+										.map(stage => (
+											<MenuItem key={stage.id} value={stage.id}>
+												{stage.name}
+											</MenuItem>
+										))}
+								</TextField>
+								<div className={classes.inlineRow}>
+									<Chip
+										size="small"
+										label={membership.kanbanStage?.name || "Sem etapa"}
+										style={{
+											backgroundColor: membership.kanbanStage?.color || membership.pipeline?.color || "#1976d2",
+											color: "#fff"
+										}}
+									/>
+									<Button
+										size="small"
+										variant="outlined"
+										color="secondary"
+										disabled={savingMembership}
+										onClick={() => handleRemoveMembership(membership)}
+									>
+										Remover
+									</Button>
+								</div>
+							</div>
+						))}
+						{!(contact?.pipelineMemberships || []).length && (
+							<Typography variant="body2" color="textSecondary">
+								Este contato ainda não está em pipelines paralelos.
+							</Typography>
+						)}
+						<div className={classes.inlineRow}>
+							<TextField
+								select
+								label="Adicionar pipeline"
+								variant="outlined"
+								size="small"
+								value={selectedPipelineId}
+								onChange={event => {
+									setSelectedPipelineId(event.target.value);
+									setSelectedStageId("");
+								}}
+								style={{ flex: 1, minWidth: 180 }}
+							>
+								{addablePipelines.map(pipeline => (
+									<MenuItem key={pipeline.id} value={pipeline.id}>
+										{pipeline.name}
+									</MenuItem>
+								))}
+							</TextField>
+							<TextField
+								select
+								label="Etapa"
+								variant="outlined"
+								size="small"
+								value={selectedStageId}
+								onChange={event => setSelectedStageId(event.target.value)}
+								style={{ flex: 1, minWidth: 160 }}
+								disabled={!selectedPipeline}
+							>
+								{(selectedPipeline?.stages || [])
+									.filter(stage => stage.active !== false)
+									.map(stage => (
+										<MenuItem key={stage.id} value={stage.id}>
+											{stage.name}
+										</MenuItem>
+									))}
+							</TextField>
+							<Button
+								variant="outlined"
+								color="primary"
+								disabled={!selectedPipelineId || savingMembership}
+								onClick={handleAddMembership}
+							>
+								Adicionar
+							</Button>
+						</div>
 					</Paper>
 				</div>
 			)}

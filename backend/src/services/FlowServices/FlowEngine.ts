@@ -9,6 +9,8 @@ import Tag from "../../models/Tag";
 import ContactCustomField from "../../models/ContactCustomField";
 import ShowTicketService from "../TicketServices/ShowTicketService";
 import UpdateContactService from "../ContactServices/UpdateContactService";
+import UpsertContactPipelineMembershipService from "../ContactServices/UpsertContactPipelineMembershipService";
+import RemoveContactPipelineMembershipService from "../ContactServices/RemoveContactPipelineMembershipService";
 import UpdateTicketService from "../TicketServices/UpdateTicketService";
 import SendWhatsAppMessage from "../WbotServices/SendWhatsAppMessage";
 import SendWhatsAppMedia from "../WbotServices/SendWhatsAppMedia";
@@ -230,8 +232,14 @@ const evaluateCondition = async (ticket: Ticket, condition: any): Promise<boolea
       return String(ticket.userId || "") === String(payload.userId || "");
     case "queue_is":
       return String(ticket.queueId || "") === String(payload.queueId || "");
-    case "has_tag":
-      return (ticket.tags || []).some(tag => String(tag.id) === String(payload.tagId));
+    case "has_tag": {
+      const tagId = String(payload.tagId || "");
+      const ticketHasTag = (ticket.tags || []).some(tag => String(tag.id) === tagId);
+      const contactHasTag = (((ticket.contact as any)?.tags || []) as any[]).some(
+        tag => String(tag.id) === tagId
+      );
+      return ticketHasTag || contactHasTag;
+    }
     case "time_is": {
       const now = new Date();
       const hhmm = now.toTimeString().slice(0, 5);
@@ -412,6 +420,28 @@ const executeAction = async (
           pipelineId: Number(payload.pipelineId)
         }
       });
+      break;
+    case "add_contact_to_pipeline":
+      await UpsertContactPipelineMembershipService({
+        contactId: ticket.contactId,
+        pipelineId: payload.pipelineId ? Number(payload.pipelineId) : null,
+        kanbanStageId: payload.kanbanStageId ? Number(payload.kanbanStageId) : null
+      });
+      break;
+    case "move_contact_pipeline_stage":
+      await UpsertContactPipelineMembershipService({
+        contactId: ticket.contactId,
+        pipelineId: payload.pipelineId ? Number(payload.pipelineId) : null,
+        kanbanStageId: payload.kanbanStageId ? Number(payload.kanbanStageId) : null
+      });
+      break;
+    case "remove_contact_from_pipeline":
+      if (payload.pipelineId) {
+        await RemoveContactPipelineMembershipService({
+          contactId: ticket.contactId,
+          pipelineId: Number(payload.pipelineId)
+        });
+      }
       break;
     case "resolve_ticket":
       await UpdateTicketService({

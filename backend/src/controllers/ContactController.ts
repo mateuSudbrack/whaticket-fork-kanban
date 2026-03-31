@@ -13,6 +13,10 @@ import CheckIsValidContact from "../services/WbotServices/CheckIsValidContact";
 import GetProfilePicUrl from "../services/WbotServices/GetProfilePicUrl";
 import AppError from "../errors/AppError";
 import GetContactService from "../services/ContactServices/GetContactService";
+import ListContactPipelineMembershipsService from "../services/ContactServices/ListContactPipelineMembershipsService";
+import UpsertContactPipelineMembershipService from "../services/ContactServices/UpsertContactPipelineMembershipService";
+import RemoveContactPipelineMembershipService from "../services/ContactServices/RemoveContactPipelineMembershipService";
+import ListPipelineContactsService from "../services/ContactServices/ListPipelineContactsService";
 
 type IndexQuery = {
   searchParam: string;
@@ -61,6 +65,67 @@ export const getContact = async (
   });
 
   return res.status(200).json(contact);
+};
+
+export const listPipelineMemberships = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const memberships = await ListContactPipelineMembershipsService(
+    req.params.contactId
+  );
+
+  return res.status(200).json(memberships);
+};
+
+export const upsertPipelineMembership = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const membership = await UpsertContactPipelineMembershipService({
+    contactId: req.params.contactId,
+    pipelineId: req.body?.pipelineId || req.params.pipelineId,
+    kanbanStageId: req.body?.kanbanStageId
+  });
+
+  const contact = await ShowContactService(req.params.contactId);
+  const io = getIO();
+  io.emit("contact", {
+    action: "update",
+    contact
+  });
+
+  return res.status(200).json(membership);
+};
+
+export const removePipelineMembership = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  await RemoveContactPipelineMembershipService({
+    contactId: req.params.contactId,
+    pipelineId: req.params.pipelineId
+  });
+
+  const contact = await ShowContactService(req.params.contactId);
+  const io = getIO();
+  io.emit("contact", {
+    action: "update",
+    contact
+  });
+
+  return res.status(200).json({ message: "Contact pipeline membership deleted" });
+};
+
+export const listByPipeline = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const memberships = await ListPipelineContactsService({
+    pipelineId: req.query.pipelineId as string
+  });
+
+  return res.status(200).json({ memberships });
 };
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
