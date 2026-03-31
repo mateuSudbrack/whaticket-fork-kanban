@@ -24,7 +24,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -33,6 +32,11 @@ import {
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const defaultApiUrl =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -1432,12 +1436,25 @@ function LoginScreen({
   onChangePassword,
   onSubmit,
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="transparent"
+        translucent
+      />
       <KeyboardAvoidingView
-        style={styles.loginShell}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={[
+          styles.loginShell,
+          {
+            paddingTop: Math.max(insets.top, 16),
+            paddingBottom: Math.max(insets.bottom, 24),
+          },
+        ]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 12}
       >
         <AppBrand title={appName} logoUrl={appLogoUrl} size={76} />
 
@@ -1507,10 +1524,23 @@ function MainShell({
   onLogout,
   children,
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.appBar}>
+    <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent
+      />
+      <View
+        style={[
+          styles.appBar,
+          {
+            paddingTop: Math.max(insets.top, 12) + 6,
+          },
+        ]}
+      >
         <AppBrand title={title} logoUrl={logoUrl} size={42} />
         <View style={styles.flexOne}>
           <Text style={styles.appBarTitle}>{title}</Text>
@@ -1521,7 +1551,14 @@ function MainShell({
 
       <View style={styles.content}>{children}</View>
 
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            paddingBottom: Math.max(insets.bottom, 10),
+          },
+        ]}
+      >
         {sections.map(item => (
           <Pressable
             key={item.key}
@@ -2859,6 +2896,7 @@ function TicketDetailScreen({
   const showResolve = ticket?.status === "open";
   const showReopen = ticket?.status === "closed";
   const conversationScrollRef = useRef(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (loading) {
@@ -2873,9 +2911,20 @@ function TicketDetailScreen({
   }, [ticket?.id, messages.length, loading]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.appBar}>
+    <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent
+      />
+      <View
+        style={[
+          styles.appBar,
+          {
+            paddingTop: Math.max(insets.top, 12) + 6,
+          },
+        ]}
+      >
         <ContactAvatar contact={ticket?.contact} size={40} />
         <View style={styles.flexOne}>
           <Text style={styles.appBarTitle} numberOfLines={1}>
@@ -2890,7 +2939,8 @@ function TicketDetailScreen({
 
       <KeyboardAvoidingView
         style={styles.flexOne}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 18}
       >
         <View style={styles.ticketActionPanel}>
           <View style={styles.card}>
@@ -3000,6 +3050,12 @@ function TicketDetailScreen({
         </ScrollView>
 
         <View style={styles.composerShell}>
+          <View
+            style={[
+              styles.composerShellInset,
+              { paddingBottom: Math.max(insets.bottom, 12) },
+            ]}
+          >
           <View style={styles.composerActions}>
             <ComposerIconButton
               icon="🖼"
@@ -3042,6 +3098,7 @@ function TicketDetailScreen({
               )}
             </Pressable>
           </View>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -3081,11 +3138,23 @@ function ContactDetailScreen({
     extraPipelines.find(
       pipeline => String(pipeline.id) === String(selectedExtraPipelineId),
     ) || null;
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.appBar}>
+    <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent
+      />
+      <View
+        style={[
+          styles.appBar,
+          {
+            paddingTop: Math.max(insets.top, 12) + 6,
+          },
+        ]}
+      >
         <ContactAvatar contact={contact} size={40} />
         <View style={styles.flexOne}>
           <Text style={styles.appBarTitle} numberOfLines={1}>
@@ -3098,7 +3167,12 @@ function ContactDetailScreen({
         <ActionButton label="Voltar" onPress={onBack} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.screenContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.screenContent,
+          { paddingBottom: Math.max(insets.bottom, 24) + 12 },
+        ]}
+      >
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Dados</Text>
           <Text style={styles.helperText}>Nome: {contact?.name || "-"}</Text>
@@ -3524,7 +3598,7 @@ function TagModal({
   );
 }
 
-export default function App() {
+function AppContent() {
   const [apiUrl, setApiUrl] = useState(defaultApiUrl);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -5944,6 +6018,14 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -6485,7 +6567,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     paddingHorizontal: 12,
     paddingTop: 10,
-    paddingBottom: 12,
+  },
+  composerShellInset: {
     gap: 10,
   },
   composerActions: {
